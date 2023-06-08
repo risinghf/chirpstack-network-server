@@ -3,11 +3,11 @@ package maccommand
 import (
 	"context"
 	"fmt"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/as"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/models"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 // Handle handles a MACCommand sent by a node.

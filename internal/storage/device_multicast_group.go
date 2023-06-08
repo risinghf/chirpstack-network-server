@@ -3,13 +3,13 @@ package storage
 import (
 	"context"
 	"time"
-
+	
 	"github.com/gofrs/uuid"
 	"github.com/jmoiron/sqlx"
 	log "github.com/sirupsen/logrus"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/logging"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 // AddDeviceToMulticastGroup adds the given device to the given multicast-group.
@@ -24,13 +24,13 @@ func AddDeviceToMulticastGroup(ctx context.Context, db sqlx.Execer, devEUI loraw
 	if err != nil {
 		return handlePSQLError(err, "insert error")
 	}
-
+	
 	log.WithFields(log.Fields{
 		"dev_eui":            devEUI,
 		"multicast_group_id": multicastGroupID,
 		"ctx_id":             ctx.Value(logging.ContextIDKey),
 	}).Info("device added to multicast-group")
-
+	
 	return nil
 }
 
@@ -49,22 +49,22 @@ func RemoveDeviceFromMulticastGroup(ctx context.Context, db sqlx.Execer, devEUI 
 	if err != nil {
 		return handlePSQLError(err, "delete error")
 	}
-
+	
 	ra, err := res.RowsAffected()
 	if err != nil {
 		return handlePSQLError(err, "get rows affected error")
 	}
-
+	
 	if ra == 0 {
 		return ErrDoesNotExist
 	}
-
+	
 	log.WithFields(log.Fields{
 		"dev_eui":            devEUI,
 		"multicast_group_id": multicastGroupID,
 		"ctx_id":             ctx.Value(logging.ContextIDKey),
 	}).Info("device removed from multicast-group")
-
+	
 	return nil
 }
 
@@ -72,7 +72,7 @@ func RemoveDeviceFromMulticastGroup(ctx context.Context, db sqlx.Execer, devEUI 
 // given Device EUI belongs.
 func GetMulticastGroupsForDevEUI(ctx context.Context, db sqlx.Queryer, devEUI lorawan.EUI64) ([]uuid.UUID, error) {
 	var out []uuid.UUID
-
+	
 	err := sqlx.Select(db, &out, `
 		select
 			multicast_group_id
@@ -84,7 +84,7 @@ func GetMulticastGroupsForDevEUI(ctx context.Context, db sqlx.Queryer, devEUI lo
 	if err != nil {
 		return nil, handlePSQLError(err, "select error")
 	}
-
+	
 	return out, nil
 }
 
@@ -92,7 +92,7 @@ func GetMulticastGroupsForDevEUI(ctx context.Context, db sqlx.Queryer, devEUI lo
 // multicast-group id.
 func GetDevEUIsForMulticastGroup(ctx context.Context, db sqlx.Queryer, multicastGroupID uuid.UUID) ([]lorawan.EUI64, error) {
 	var out []lorawan.EUI64
-
+	
 	err := sqlx.Select(db, &out, `
 		select
 			dev_eui
@@ -104,6 +104,6 @@ func GetDevEUIsForMulticastGroup(ctx context.Context, db sqlx.Queryer, multicast
 	if err != nil {
 		return nil, handlePSQLError(err, "select error")
 	}
-
+	
 	return out, nil
 }

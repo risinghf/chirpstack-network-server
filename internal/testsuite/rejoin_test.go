@@ -5,11 +5,11 @@ import (
 	"errors"
 	"testing"
 	"time"
-
+	
 	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/common"
 	"github.com/brocaar/chirpstack-api/go/v3/gw"
 	"github.com/brocaar/chirpstack-api/go/v3/nc"
@@ -20,14 +20,14 @@ import (
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/test"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/uplink"
-	"github.com/brocaar/lorawan"
-	"github.com/brocaar/lorawan/backend"
-	loraband "github.com/brocaar/lorawan/band"
+	"github.com/risinghf/lorawan"
+	"github.com/risinghf/lorawan/backend"
+	loraband "github.com/risinghf/lorawan/band"
 )
 
 type RejoinTestSuite struct {
 	IntegrationTestSuite
-
+	
 	RXInfo gw.UplinkRXInfo
 	TXInfo gw.UplinkTXInfo
 }
@@ -35,9 +35,9 @@ type RejoinTestSuite struct {
 func (ts *RejoinTestSuite) SetupSuite() {
 	ts.IntegrationTestSuite.SetupSuite()
 	assert := require.New(ts.T())
-
+	
 	ts.JoinAcceptKey = lorawan.AES128Key{1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8}
-
+	
 	ts.CreateDeviceProfile(storage.DeviceProfile{
 		MACVersion:   "1.1.0",
 		RXDelay1:     3,
@@ -45,11 +45,11 @@ func (ts *RejoinTestSuite) SetupSuite() {
 		RXDataRate2:  5,
 		SupportsJoin: true,
 	})
-
+	
 	ts.CreateDevice(storage.Device{
 		DevEUI: lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8},
 	})
-
+	
 	ts.CreateDeviceSession(storage.DeviceSession{
 		DevAddr:               lorawan.DevAddr{1, 2, 3, 4},
 		JoinEUI:               lorawan.EUI64{8, 7, 6, 5, 4, 3, 2, 1},
@@ -62,16 +62,16 @@ func (ts *RejoinTestSuite) SetupSuite() {
 		NbTrans:               1,
 		EnabledUplinkChannels: []int{0, 1, 2},
 	})
-
+	
 	ts.CreateGateway(storage.Gateway{
 		GatewayID: lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8},
 	})
-
+	
 	ts.RXInfo = gw.UplinkRXInfo{
 		GatewayId: ts.Gateway.GatewayID[:],
 		Location:  &common.Location{},
 	}
-
+	
 	ts.TXInfo = gw.UplinkTXInfo{
 		Frequency: 868100000,
 	}
@@ -81,7 +81,7 @@ func (ts *RejoinTestSuite) SetupSuite() {
 func (ts *RejoinTestSuite) SetupTest() {
 	ts.IntegrationTestSuite.SetupTest()
 	assert := require.New(ts.T())
-
+	
 	conf := test.GetConfig()
 	conf.NetworkServer.NetworkSettings.RX2DR = 3
 	conf.NetworkServer.NetworkSettings.RX1DROffset = 2
@@ -92,19 +92,19 @@ func (ts *RejoinTestSuite) SetupTest() {
 			KEK:   "00000000000000000000000000000000",
 		},
 	}
-
+	
 	assert.NoError(uplink.Setup(conf))
 	assert.NoError(downlink.Setup(conf))
-
+	
 	band.Band().AddChannel(867100000, 0, 5)
 	band.Band().AddChannel(867300000, 0, 5)
 	band.Band().AddChannel(867500000, 0, 5)
-
+	
 }
 
 func (ts *RejoinTestSuite) TestGatewayFiltering() {
 	assert := require.New(ts.T())
-
+	
 	cFList := lorawan.CFList{
 		CFListType: lorawan.CFListChannel,
 		Payload: &lorawan.CFListChannelPayload{
@@ -117,7 +117,7 @@ func (ts *RejoinTestSuite) TestGatewayFiltering() {
 	}
 	cFListB, err := cFList.MarshalBinary()
 	assert.NoError(err)
-
+	
 	jrPHY := lorawan.PHYPayload{
 		MHDR: lorawan.MHDR{
 			MType: lorawan.RejoinRequest,
@@ -133,7 +133,7 @@ func (ts *RejoinTestSuite) TestGatewayFiltering() {
 	assert.NoError(jrPHY.SetUplinkJoinMIC(ts.DeviceSession.SNwkSIntKey))
 	jrPHYBytes, err := jrPHY.MarshalBinary()
 	assert.NoError(err)
-
+	
 	jaPHY := lorawan.PHYPayload{
 		MHDR: lorawan.MHDR{
 			MType: lorawan.JoinAccept,
@@ -145,7 +145,7 @@ func (ts *RejoinTestSuite) TestGatewayFiltering() {
 	jaPHYBytes, err := jaPHY.MarshalBinary()
 	assert.NoError(err)
 	assert.NoError(jaPHY.DecryptJoinAcceptPayload(ts.JoinAcceptKey))
-
+	
 	tests := []RejoinTest{
 		{
 			Name:          "public gateway",
@@ -258,7 +258,7 @@ func (ts *RejoinTestSuite) TestGatewayFiltering() {
 				if err := storage.CreateServiceProfile(context.Background(), storage.DB(), &sp); err != nil {
 					return err
 				}
-
+				
 				ts.Gateway.ServiceProfileID = &sp.ID
 				return storage.UpdateGateway(context.Background(), storage.DB(), ts.Gateway)
 			},
@@ -295,20 +295,20 @@ func (ts *RejoinTestSuite) TestGatewayFiltering() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertRejoinTest(t, tst)
 		})
 	}
-
+	
 	// make sure we set the RejoinCount0 back to 0
 	ts.DeviceSession.RejoinCount0 = 0
 }
 
 func (ts *RejoinTestSuite) TestRejoinType0() {
 	assert := require.New(ts.T())
-
+	
 	cFList := lorawan.CFList{
 		CFListType: lorawan.CFListChannel,
 		Payload: &lorawan.CFListChannelPayload{
@@ -321,7 +321,7 @@ func (ts *RejoinTestSuite) TestRejoinType0() {
 	}
 	cFListB, err := cFList.MarshalBinary()
 	assert.NoError(err)
-
+	
 	jrPHY := lorawan.PHYPayload{
 		MHDR: lorawan.MHDR{
 			MType: lorawan.RejoinRequest,
@@ -337,7 +337,7 @@ func (ts *RejoinTestSuite) TestRejoinType0() {
 	assert.NoError(jrPHY.SetUplinkJoinMIC(ts.DeviceSession.SNwkSIntKey))
 	jrPHYBytes, err := jrPHY.MarshalBinary()
 	assert.NoError(err)
-
+	
 	jaPHY := lorawan.PHYPayload{
 		MHDR: lorawan.MHDR{
 			MType: lorawan.JoinAccept,
@@ -349,7 +349,7 @@ func (ts *RejoinTestSuite) TestRejoinType0() {
 	jaPHYBytes, err := jaPHY.MarshalBinary()
 	assert.NoError(err)
 	assert.NoError(jaPHY.DecryptJoinAcceptPayload(ts.JoinAcceptKey))
-
+	
 	tests := []RejoinTest{
 		{
 			Name:          "valid rejoin-request",
@@ -594,13 +594,13 @@ func (ts *RejoinTestSuite) TestRejoinType0() {
 			ExpectedError: errors.New("invalid RJcount0"),
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertRejoinTest(t, tst)
 		})
 	}
-
+	
 	// make sure we set the RejoinCount0 back to 0
 	ts.DeviceSession.RejoinCount0 = 0
 }
@@ -608,7 +608,7 @@ func (ts *RejoinTestSuite) TestRejoinType0() {
 func (ts *RejoinTestSuite) TestRejoinType2() {
 	assert := require.New(ts.T())
 	conf := test.GetConfig()
-
+	
 	jrPHY := lorawan.PHYPayload{
 		MHDR: lorawan.MHDR{
 			MType: lorawan.RejoinRequest,
@@ -624,7 +624,7 @@ func (ts *RejoinTestSuite) TestRejoinType2() {
 	assert.NoError(jrPHY.SetUplinkJoinMIC(ts.DeviceSession.SNwkSIntKey))
 	jrPHYBytes, err := jrPHY.MarshalBinary()
 	assert.NoError(err)
-
+	
 	jsIntKey := lorawan.AES128Key{8, 7, 6, 5, 4, 3, 2, 1, 8, 7, 6, 5, 4, 3, 2, 1}
 	jaPHY := lorawan.PHYPayload{
 		MHDR: lorawan.MHDR{
@@ -647,7 +647,7 @@ func (ts *RejoinTestSuite) TestRejoinType2() {
 	jaBytes, err := jaPHY.MarshalBinary()
 	assert.NoError(err)
 	assert.NoError(jaPHY.DecryptJoinAcceptPayload(ts.JoinAcceptKey))
-
+	
 	tests := []RejoinTest{
 		{
 			Name:          "valid rejoin-request",
@@ -857,7 +857,7 @@ func (ts *RejoinTestSuite) TestRejoinType2() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertRejoinTest(t, tst)

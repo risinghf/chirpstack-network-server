@@ -4,13 +4,13 @@ import (
 	"math/rand"
 	"sort"
 	"time"
-
+	
 	"github.com/pkg/errors"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/band"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/config"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	loraband "github.com/brocaar/lorawan/band"
+	loraband "github.com/risinghf/lorawan/band"
 )
 
 // BySignal implements sort.Interface for []gw.UplinkRXInfo based on signal strength.
@@ -32,7 +32,7 @@ func (s BySignal) Less(i, j int) bool {
 	if s[i].LoRaSNR == s[j].LoRaSNR {
 		return s[i].RSSI > s[j].RSSI
 	}
-
+	
 	return s[i].LoRaSNR > s[j].LoRaSNR
 }
 
@@ -50,10 +50,10 @@ func SelectDownlinkGateway(minSNRMargin float64, rxDR int, rxInfo []storage.Devi
 	if err != nil {
 		return storage.DeviceGatewayRXInfo{}, errors.Wrap(err, "get data-rate error")
 	}
-
+	
 	// Sort by SNR.
 	sort.Sort(BySignal(rxInfo))
-
+	
 	// This builds a slice of items where the (Required SNR - RX SNR) > minMargin.
 	var newRxInfo []storage.DeviceGatewayRXInfo
 	for i := range rxInfo {
@@ -61,12 +61,12 @@ func SelectDownlinkGateway(minSNRMargin float64, rxDR int, rxInfo []storage.Devi
 			newRxInfo = append(newRxInfo, rxInfo[i])
 		}
 	}
-
+	
 	// Return first element from sorted slice failing the above.
 	if len(newRxInfo) == 0 {
 		return rxInfo[0], nil
 	}
-
+	
 	// Return random item from SNR > minSNR slice.
 	rand.Seed(time.Now().UnixNano())
 	return newRxInfo[rand.Intn(len(newRxInfo))], nil

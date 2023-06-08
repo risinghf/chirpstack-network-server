@@ -4,14 +4,14 @@ import (
 	"context"
 	"testing"
 	"time"
-
+	
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/as"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/test"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 type DevStatusTestSuite struct {
@@ -20,10 +20,10 @@ type DevStatusTestSuite struct {
 
 func (ts *DevStatusTestSuite) TestRequestDevStatus() {
 	assert := require.New(ts.T())
-
+	
 	ds := storage.DeviceSession{}
 	block := RequestDevStatus(context.Background(), &ds)
-
+	
 	assert.Equal(storage.MACCommandBlock{
 		CID: lorawan.DevStatusReq,
 		MACCommands: []lorawan.MACCommand{
@@ -32,7 +32,7 @@ func (ts *DevStatusTestSuite) TestRequestDevStatus() {
 			},
 		},
 	}, block)
-
+	
 	assert.InDelta(ds.LastDevStatusRequested.UnixNano(), time.Now().UnixNano(), float64(time.Second))
 }
 
@@ -125,7 +125,7 @@ func (ts *DevStatusTestSuite) TestDevStatusAns() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			assert := require.New(t)
@@ -133,7 +133,7 @@ func (ts *DevStatusTestSuite) TestDevStatusAns() {
 			resp, err := handleDevStatusAns(context.Background(), &tst.DeviceSession, tst.ServiceProfile, asClient, tst.ReceivedMACCommandBlock)
 			assert.NoError(err)
 			assert.Len(resp, 0)
-
+			
 			assert.Equal(tst.ExpectedSetDeviceStatusRequest, <-asClient.SetDeviceStatusChan)
 		})
 	}

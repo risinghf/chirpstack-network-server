@@ -3,11 +3,11 @@ package maccommand
 import (
 	"context"
 	"testing"
-
+	
 	"github.com/stretchr/testify/require"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 func TestRXParamSetup(t *testing.T) {
@@ -29,7 +29,7 @@ func TestRXParamSetup(t *testing.T) {
 			},
 		}, RequestRXParamSetup(2, 868700000, 5))
 	})
-
+	
 	t.Run("handleRXParamSetup", func(t *testing.T) {
 		tests := []struct {
 			Name                    string
@@ -132,17 +132,17 @@ func TestRXParamSetup(t *testing.T) {
 				},
 			},
 		}
-
+		
 		for _, tst := range tests {
 			t.Run(tst.Name, func(t *testing.T) {
 				assert := require.New(t)
 				ans, err := handleRXParamSetupAns(context.Background(), &tst.DeviceSession, tst.ReceivedMACCommandBlock, tst.PendingMACCommandBlock)
 				assert.NoError(err)
 				assert.Nil(ans)
-
+				
 				assert.Equal(tst.ExpectedDeviceSession, tst.DeviceSession)
 			})
-
+			
 		}
 	})
 }

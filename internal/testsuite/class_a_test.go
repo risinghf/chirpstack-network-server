@@ -5,12 +5,12 @@ import (
 	"errors"
 	"testing"
 	"time"
-
+	
 	"github.com/gofrs/uuid"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/as"
 	"github.com/brocaar/chirpstack-api/go/v3/common"
 	"github.com/brocaar/chirpstack-api/go/v3/gw"
@@ -21,15 +21,15 @@ import (
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/test"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/uplink"
-	"github.com/brocaar/lorawan"
-	loraband "github.com/brocaar/lorawan/band"
+	"github.com/risinghf/lorawan"
+	loraband "github.com/risinghf/lorawan/band"
 )
 
 func init() {
 	if err := lorawan.RegisterProprietaryMACCommand(true, 0x80, 3); err != nil {
 		panic(err)
 	}
-
+	
 	if err := lorawan.RegisterProprietaryMACCommand(true, 0x81, 2); err != nil {
 		panic(err)
 	}
@@ -37,7 +37,7 @@ func init() {
 
 type ClassATestSuite struct {
 	IntegrationTestSuite
-
+	
 	RXInfo       gw.UplinkRXInfo
 	TXInfo       gw.UplinkTXInfo
 	TXInfoLRFHSS gw.UplinkTXInfo
@@ -45,9 +45,9 @@ type ClassATestSuite struct {
 
 func (ts *ClassATestSuite) SetupSuite() {
 	ts.IntegrationTestSuite.SetupSuite()
-
+	
 	assert := require.New(ts.T())
-
+	
 	ts.CreateGateway(storage.Gateway{
 		GatewayID: lorawan.EUI64{1, 2, 1, 2, 1, 2, 1, 2},
 		Location: storage.GPSPoint{
@@ -56,16 +56,16 @@ func (ts *ClassATestSuite) SetupSuite() {
 		},
 		Altitude: 3,
 	})
-
+	
 	ts.CreateServiceProfile(storage.ServiceProfile{
 		DRMax:         5,
 		AddGWMetadata: true,
 	})
-
+	
 	ts.CreateDevice(storage.Device{
 		DevEUI: lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8},
 	})
-
+	
 	ts.RXInfo = gw.UplinkRXInfo{
 		GatewayId: ts.Gateway.GatewayID[:],
 		LoraSnr:   7,
@@ -78,12 +78,12 @@ func (ts *ClassATestSuite) SetupSuite() {
 	}
 	ts.RXInfo.Time = ptypes.TimestampNow()
 	ts.RXInfo.TimeSinceGpsEpoch = ptypes.DurationProto(10 * time.Second)
-
+	
 	ts.TXInfo = gw.UplinkTXInfo{
 		Frequency: 868100000,
 	}
 	assert.NoError(helpers.SetUplinkTXInfoDataRate(&ts.TXInfo, 0, band.Band()))
-
+	
 	ts.TXInfoLRFHSS = gw.UplinkTXInfo{
 		Frequency: 867300000,
 	}
@@ -103,9 +103,9 @@ func (ts *ClassATestSuite) TestLW10Errors() {
 		EnabledUplinkChannels: []int{0, 1, 2},
 		RX2Frequency:          869525000,
 	})
-
+	
 	var fPortOne uint8 = 1
-
+	
 	tests := []ClassATest{
 		{
 			Name:          "invalid frame-counter (did not increment)",
@@ -201,7 +201,7 @@ func (ts *ClassATestSuite) TestLW10Errors() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertClassATest(t, tst)
@@ -222,9 +222,9 @@ func (ts *ClassATestSuite) TestLW11Errors() {
 		EnabledUplinkChannels: []int{0, 1, 2},
 		RX2Frequency:          869525000,
 	})
-
+	
 	var fPortOne uint8 = 1
-
+	
 	tests := []ClassATest{
 		{
 			Name: "the frequency is invalid (MIC)",
@@ -277,7 +277,7 @@ func (ts *ClassATestSuite) TestLW11Errors() {
 			ExpectedError: errors.New("get device-session error: invalid MIC"),
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertClassATest(t, tst)
@@ -299,9 +299,9 @@ func (ts *ClassATestSuite) TestLW10RelaxFrameCounter() {
 		RX2Frequency:          869525000,
 		SkipFCntValidation:    true,
 	})
-
+	
 	var fPortOne uint8 = 1
-
+	
 	tests := []ClassATest{
 		{
 			Name:          "the frame-counter is invalid but not 0",
@@ -370,7 +370,7 @@ func (ts *ClassATestSuite) TestLW10RelaxFrameCounter() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertClassATest(t, tst)
@@ -392,9 +392,9 @@ func (ts *ClassATestSuite) TestLW10UplinkDeviceDisabled() {
 		RX2Frequency:          869525000,
 		IsDisabled:            true,
 	})
-
+	
 	var fPortOne uint8 = 1
-
+	
 	tests := []ClassATest{
 		{
 			Name:          "uplink is ignored",
@@ -422,7 +422,7 @@ func (ts *ClassATestSuite) TestLW10UplinkDeviceDisabled() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertClassATest(t, tst)
@@ -443,9 +443,9 @@ func (ts *ClassATestSuite) TestGatewayFiltering() {
 		EnabledUplinkChannels: []int{0, 1, 2},
 		RX2Frequency:          869525000,
 	})
-
+	
 	var fPortOne uint8 = 1
-
+	
 	tests := []ClassATest{
 		{
 			Name:          "public gateway",
@@ -530,7 +530,7 @@ func (ts *ClassATestSuite) TestGatewayFiltering() {
 				if err := storage.CreateServiceProfile(context.Background(), storage.DB(), &sp); err != nil {
 					return err
 				}
-
+				
 				ts.Gateway.ServiceProfileID = &sp.ID
 				return storage.UpdateGateway(context.Background(), storage.DB(), ts.Gateway)
 			},
@@ -562,7 +562,7 @@ func (ts *ClassATestSuite) TestGatewayFiltering() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertClassATest(t, tst)
@@ -583,10 +583,10 @@ func (ts *ClassATestSuite) TestLW10Uplink() {
 		EnabledUplinkChannels: []int{0, 1, 2},
 		RX2Frequency:          869525000,
 	})
-
+	
 	var fPortOne uint8 = 1
 	inTenMinutes := time.Now().Add(10 * time.Minute)
-
+	
 	tests := []ClassATest{
 		{
 			Name:          "unconfirmed uplink with payload",
@@ -932,7 +932,7 @@ func (ts *ClassATestSuite) TestLW10Uplink() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertClassATest(t, tst)
@@ -942,7 +942,7 @@ func (ts *ClassATestSuite) TestLW10Uplink() {
 
 func (ts *ClassATestSuite) TestLR10LRFHSSUplink() {
 	conf := test.GetConfig()
-
+	
 	// Add channel with LR-FHSS data-rate enabled.
 	conf.NetworkServer.NetworkSettings.ExtraChannels = append(conf.NetworkServer.NetworkSettings.ExtraChannels, struct {
 		Frequency uint32 `mapstructure:"frequency"`
@@ -954,7 +954,7 @@ func (ts *ClassATestSuite) TestLR10LRFHSSUplink() {
 		MaxDR:     11,
 	})
 	band.Setup(conf)
-
+	
 	ts.CreateDeviceSession(storage.DeviceSession{
 		MACVersion:            "1.0.2",
 		JoinEUI:               lorawan.EUI64{8, 7, 6, 5, 4, 3, 2, 1},
@@ -974,9 +974,9 @@ func (ts *ClassATestSuite) TestLR10LRFHSSUplink() {
 			},
 		},
 	})
-
+	
 	var fPortOne uint8 = 1
-
+	
 	tests := []ClassATest{
 		{
 			Name:          "unconfirmed uplink with payload using LR-FHSS dr",
@@ -1022,7 +1022,7 @@ func (ts *ClassATestSuite) TestLR10LRFHSSUplink() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertClassATest(t, tst)
@@ -1043,10 +1043,10 @@ func (ts *ClassATestSuite) TestLW11Uplink() {
 		EnabledUplinkChannels: []int{0, 1, 2},
 		RX2Frequency:          869525000,
 	})
-
+	
 	var fPortOne uint8 = 1
 	inTenMinutes := time.Now().Add(10 * time.Minute)
-
+	
 	tests := []ClassATest{
 		{
 			Name:          "unconfirmed uplink with payload",
@@ -1134,7 +1134,7 @@ func (ts *ClassATestSuite) TestLW11Uplink() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertClassATest(t, tst)
@@ -1144,7 +1144,7 @@ func (ts *ClassATestSuite) TestLW11Uplink() {
 
 func (ts *ClassATestSuite) TestLW10RXDelay() {
 	assert := require.New(ts.T())
-
+	
 	ts.CreateDeviceSession(storage.DeviceSession{
 		MACVersion:            "1.0.2",
 		JoinEUI:               lorawan.EUI64{8, 7, 6, 5, 4, 3, 2, 1},
@@ -1158,14 +1158,14 @@ func (ts *ClassATestSuite) TestLW10RXDelay() {
 		RX2Frequency:          869525000,
 		RXDelay:               3,
 	})
-
+	
 	conf := test.GetConfig()
 	conf.NetworkServer.NetworkSettings.RX1Delay = 3
 	assert.NoError(uplink.Setup(conf))
 	assert.NoError(downlink.Setup(conf))
-
+	
 	var fPortOne uint8 = 1
-
+	
 	tests := []ClassATest{
 		{
 			Name:          "confirmed uplink without payload (rxdelay = 3)",
@@ -1238,7 +1238,7 @@ func (ts *ClassATestSuite) TestLW10RXDelay() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertClassATest(t, tst)
@@ -1259,10 +1259,10 @@ func (ts *ClassATestSuite) TestLW10MACCommands() {
 		EnabledUplinkChannels: []int{0, 1, 2},
 		RX2Frequency:          869525000,
 	})
-
+	
 	fPortZero := uint8(0)
 	fPortThree := uint8(3)
-
+	
 	tests := []ClassATest{
 		{
 			Name:          "two uplink mac-commands (FOpts)",
@@ -1371,7 +1371,7 @@ func (ts *ClassATestSuite) TestLW10MACCommands() {
 				if err := tst.PHYPayload.SetUplinkDataMIC(lorawan.LoRaWAN1_0, 0, 0, 0, tst.DeviceSession.FNwkSIntKey, tst.DeviceSession.SNwkSIntKey); err != nil {
 					return err
 				}
-
+				
 				ts.ServiceProfile.DevStatusReqFreq = 1
 				return storage.UpdateServiceProfile(context.Background(), storage.DB(), ts.ServiceProfile)
 			},
@@ -1443,7 +1443,7 @@ func (ts *ClassATestSuite) TestLW10MACCommands() {
 				if err := tst.PHYPayload.SetUplinkDataMIC(lorawan.LoRaWAN1_0, 0, 0, 0, tst.DeviceSession.FNwkSIntKey, tst.DeviceSession.SNwkSIntKey); err != nil {
 					return err
 				}
-
+				
 				ts.ServiceProfile.DevStatusReqFreq = 1
 				return storage.UpdateServiceProfile(context.Background(), storage.DB(), ts.ServiceProfile)
 			},
@@ -1576,7 +1576,7 @@ func (ts *ClassATestSuite) TestLW10MACCommands() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertClassATest(t, tst)
@@ -1586,7 +1586,7 @@ func (ts *ClassATestSuite) TestLW10MACCommands() {
 
 func (ts *ClassATestSuite) TestLW10MACCommandsDisabled() {
 	assert := require.New(ts.T())
-
+	
 	ts.CreateDeviceSession(storage.DeviceSession{
 		MACVersion:            "1.0.2",
 		JoinEUI:               lorawan.EUI64{8, 7, 6, 5, 4, 3, 2, 1},
@@ -1599,14 +1599,14 @@ func (ts *ClassATestSuite) TestLW10MACCommandsDisabled() {
 		EnabledUplinkChannels: []int{0, 1, 2},
 		RX2Frequency:          869525000,
 	})
-
+	
 	fPortZero := uint8(0)
-
+	
 	conf := test.GetConfig()
 	conf.NetworkServer.NetworkSettings.DisableMACCommands = true
 	assert.NoError(uplink.Setup(conf))
 	assert.NoError(downlink.Setup(conf))
-
+	
 	tests := []ClassATest{
 		{
 			Name:          "uplink with link-check request (FOpts)",
@@ -1800,7 +1800,7 @@ func (ts *ClassATestSuite) TestLW10MACCommandsDisabled() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertClassATest(t, tst)
@@ -1821,7 +1821,7 @@ func (ts *ClassATestSuite) TestLW11MACCommands() {
 		EnabledUplinkChannels: []int{0, 1, 2},
 		RX2Frequency:          869525000,
 	})
-
+	
 	tests := []ClassATest{
 		{
 			Name: "two uplink mac-commands (FOpts)",
@@ -1870,7 +1870,7 @@ func (ts *ClassATestSuite) TestLW11MACCommands() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertClassATest(t, tst)
@@ -1880,7 +1880,7 @@ func (ts *ClassATestSuite) TestLW11MACCommands() {
 
 func (ts *ClassATestSuite) TestLW10AddGWMetadata() {
 	assert := require.New(ts.T())
-
+	
 	ts.CreateDeviceSession(storage.DeviceSession{
 		MACVersion:            "1.0.2",
 		JoinEUI:               lorawan.EUI64{8, 7, 6, 5, 4, 3, 2, 1},
@@ -1893,12 +1893,12 @@ func (ts *ClassATestSuite) TestLW10AddGWMetadata() {
 		EnabledUplinkChannels: []int{0, 1, 2},
 		RX2Frequency:          869525000,
 	})
-
+	
 	ts.ServiceProfile.AddGWMetadata = false
 	assert.NoError(storage.UpdateServiceProfile(context.Background(), storage.DB(), ts.ServiceProfile))
-
+	
 	fPortOne := uint8(1)
-
+	
 	tests := []ClassATest{
 		{
 			Name:          "unconfirmed uplink with payload (service-profile: no gw meta-data)",
@@ -1936,13 +1936,13 @@ func (ts *ClassATestSuite) TestLW10AddGWMetadata() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertClassATest(t, tst)
 		})
 	}
-
+	
 	ts.ServiceProfile.AddGWMetadata = true
 	assert.NoError(storage.UpdateServiceProfile(context.Background(), storage.DB(), ts.ServiceProfile))
 }
@@ -1961,10 +1961,10 @@ func (ts *ClassATestSuite) TestLW11DeviceQueue() {
 		EnabledUplinkChannels: []int{0, 1, 2},
 		RX2Frequency:          869525000,
 	})
-
+	
 	fPortOne := uint8(1)
 	fPortTen := uint8(10)
-
+	
 	tests := []ClassATest{
 		{
 			Name:          "unconfirmed uplink + one unconfirmed downlink payload in queue",
@@ -2117,7 +2117,7 @@ func (ts *ClassATestSuite) TestLW11DeviceQueue() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertClassATest(t, tst)
@@ -2138,10 +2138,10 @@ func (ts *ClassATestSuite) TestLW10DeviceQueue() {
 		EnabledUplinkChannels: []int{0, 1, 2},
 		RX2Frequency:          869525000,
 	})
-
+	
 	fPortOne := uint8(1)
 	fPortTen := uint8(10)
-
+	
 	tests := []ClassATest{
 		{
 			Name:          "unconfirmed uplink + one unconfirmed downlink payload in queue",
@@ -2498,7 +2498,7 @@ func (ts *ClassATestSuite) TestLW10DeviceQueue() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertClassATest(t, tst)
@@ -2519,7 +2519,7 @@ func (ts *ClassATestSuite) TestLW10ADR() {
 		EnabledUplinkChannels: []int{0, 1, 2},
 		RX2Frequency:          869525000,
 	})
-
+	
 	tests := []ClassATest{
 		{
 			Name:          "adr triggered",
@@ -3121,7 +3121,7 @@ func (ts *ClassATestSuite) TestLW10ADR() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertClassATest(t, tst)
@@ -3131,7 +3131,7 @@ func (ts *ClassATestSuite) TestLW10ADR() {
 
 func (ts *ClassATestSuite) TestLW10DeviceStatusRequest() {
 	assert := require.New(ts.T())
-
+	
 	ts.CreateDeviceSession(storage.DeviceSession{
 		MACVersion:            "1.0.2",
 		JoinEUI:               lorawan.EUI64{8, 7, 6, 5, 4, 3, 2, 1},
@@ -3144,14 +3144,14 @@ func (ts *ClassATestSuite) TestLW10DeviceStatusRequest() {
 		EnabledUplinkChannels: []int{0, 1, 2},
 		RX2Frequency:          869525000,
 	})
-
+	
 	ts.ServiceProfile.DevStatusReqFreq = 24
 	ts.ServiceProfile.ReportDevStatusBattery = true
 	ts.ServiceProfile.ReportDevStatusMargin = true
 	assert.NoError(storage.UpdateServiceProfile(context.Background(), storage.DB(), ts.ServiceProfile))
-
+	
 	fPortOne := uint8(1)
-
+	
 	tests := []ClassATest{
 		{
 			Name: "must request device-status",
@@ -3322,13 +3322,13 @@ func (ts *ClassATestSuite) TestLW10DeviceStatusRequest() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertClassATest(t, tst)
 		})
 	}
-
+	
 	ts.ServiceProfile.DevStatusReqFreq = 0
 	ts.ServiceProfile.ReportDevStatusBattery = false
 	ts.ServiceProfile.ReportDevStatusMargin = false
@@ -3349,16 +3349,16 @@ func (ts *ClassATestSuite) TestLW11ReceiveWindowSelection() {
 		EnabledUplinkChannels: []int{0, 1, 2},
 		RX2Frequency:          869525000,
 	})
-
+	
 	var fPortOne uint8 = 1
-
+	
 	tests := []ClassATest{
 		{
 			Name: "unconfirmed uplink with payload (rx1)",
 			BeforeFunc: func(tst *ClassATest) error {
 				conf := test.GetConfig()
 				conf.NetworkServer.NetworkSettings.RXWindow = 1
-
+				
 				return downlink.Setup(conf)
 			},
 			DeviceQueueItems: []storage.DeviceQueueItem{
@@ -3430,7 +3430,7 @@ func (ts *ClassATestSuite) TestLW11ReceiveWindowSelection() {
 				conf := test.GetConfig()
 				conf.NetworkServer.NetworkSettings.RXWindow = 2
 				conf.NetworkServer.NetworkSettings.RX1Delay = 0
-
+				
 				return downlink.Setup(conf)
 			},
 			DeviceQueueItems: []storage.DeviceQueueItem{
@@ -3502,9 +3502,9 @@ func (ts *ClassATestSuite) TestLW11ReceiveWindowSelection() {
 				conf := test.GetConfig()
 				conf.NetworkServer.NetworkSettings.RXWindow = 2
 				conf.NetworkServer.NetworkSettings.RX1Delay = 1
-
+				
 				tst.DeviceSession.RXDelay = 1
-
+				
 				return downlink.Setup(conf)
 			},
 			DeviceQueueItems: []storage.DeviceQueueItem{
@@ -3575,7 +3575,7 @@ func (ts *ClassATestSuite) TestLW11ReceiveWindowSelection() {
 			BeforeFunc: func(tst *ClassATest) error {
 				conf := test.GetConfig()
 				conf.NetworkServer.NetworkSettings.RXWindow = 0
-
+				
 				return downlink.Setup(conf)
 			},
 			DeviceQueueItems: []storage.DeviceQueueItem{
@@ -3824,7 +3824,7 @@ func (ts *ClassATestSuite) TestLW11ReceiveWindowSelection() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertClassATest(t, tst)

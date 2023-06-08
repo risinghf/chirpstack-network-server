@@ -4,26 +4,26 @@ import (
 	"context"
 	"fmt"
 	"time"
-
+	
 	"github.com/gofrs/uuid"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/band"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/helpers"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/logging"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/models"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/roaming"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
-	"github.com/brocaar/lorawan/backend"
+	"github.com/risinghf/lorawan"
+	"github.com/risinghf/lorawan/backend"
 )
 
 type roamingDataContext struct {
 	ctx        context.Context
 	rxPacket   models.RXPacket
 	macPayload *lorawan.MACPayload
-
+	
 	prDeviceSessions []storage.PassiveRoamingDeviceSession
 }
 
@@ -34,7 +34,7 @@ func HandleRoamingFNS(ctx context.Context, rxPacket models.RXPacket, macPL *lora
 		rxPacket:   rxPacket,
 		macPayload: macPL,
 	}
-
+	
 	for _, f := range []func() error{
 		cctx.filterRxInfoByPublicOnly,
 		cctx.getPassiveRoamingDeviceSessions,
@@ -46,11 +46,11 @@ func HandleRoamingFNS(ctx context.Context, rxPacket models.RXPacket, macPL *lora
 			if err == ErrAbort {
 				return nil
 			}
-
+			
 			return err
 		}
 	}
-
+	
 	return nil
 }
 
@@ -65,7 +65,7 @@ func (ctx *roamingDataContext) filterRxInfoByPublicOnly() error {
 		}
 		return err
 	}
-
+	
 	return nil
 }
 
@@ -77,12 +77,12 @@ func (ctx *roamingDataContext) getPassiveRoamingDeviceSessions() error {
 			"ctx_id": ctx.ctx.Value(logging.ContextIDKey),
 		}).Error("uplink/data: get passive-roaming device-sessions error")
 	}
-
+	
 	for i := range ctx.prDeviceSessions {
 		// increment frame-counter
 		ctx.prDeviceSessions[i].FCntUp = ctx.macPayload.FHDR.FCnt + 1
 	}
-
+	
 	return nil
 }
 
@@ -91,12 +91,12 @@ func (ctx *roamingDataContext) startPassiveRoamingSessions() error {
 	if len(ctx.prDeviceSessions) != 0 {
 		return nil
 	}
-
+	
 	log.WithFields(log.Fields{
 		"ctx_id":   ctx.ctx.Value(logging.ContextIDKey),
 		"dev_addr": ctx.macPayload.FHDR.DevAddr,
 	}).Info("uplink/data: starting passive-roaming sessions with matching netids")
-
+	
 	netIDMatches := roaming.GetNetIDsForDevAddr(ctx.macPayload.FHDR.DevAddr)
 	for _, netID := range netIDMatches {
 		ds, err := ctx.startPassiveRoamingSession(netID)
@@ -108,7 +108,7 @@ func (ctx *roamingDataContext) startPassiveRoamingSessions() error {
 			}).Error("uplink/data: start passive-roaming error")
 			continue
 		}
-
+		
 		// No need to store the device-session or call XmitDataReq when
 		// lifetime is not set (stateless passive-roaming).
 		var nullTime time.Time
@@ -116,7 +116,7 @@ func (ctx *roamingDataContext) startPassiveRoamingSessions() error {
 			ctx.prDeviceSessions = append(ctx.prDeviceSessions, ds)
 		}
 	}
-
+	
 	return nil
 }
 
@@ -131,7 +131,7 @@ func (ctx *roamingDataContext) forwardUplinkMessageForSessions() error {
 				"ctx_id":   ctx.ctx.Value(logging.ContextIDKey),
 			}).Error("uplink/data: get backend client error")
 		}
-
+		
 		// forward data
 		if err := ctx.xmitDataUplink(client); err != nil {
 			log.WithError(err).WithFields(log.Fields{
@@ -143,7 +143,7 @@ func (ctx *roamingDataContext) forwardUplinkMessageForSessions() error {
 			}).Error("uplink/data: passive-roaming XmitDataReq failed")
 			continue
 		}
-
+		
 		log.WithFields(log.Fields{
 			"dev_addr":                          ctx.macPayload.FHDR.DevAddr,
 			"net_id":                            ds.NetID,
@@ -152,7 +152,7 @@ func (ctx *roamingDataContext) forwardUplinkMessageForSessions() error {
 			"ctx_id":                            ctx.ctx.Value(logging.ContextIDKey),
 		}).Info("uplink/data: forwarded uplink using passive-roaming")
 	}
-
+	
 	return nil
 }
 
@@ -166,30 +166,30 @@ func (ctx *roamingDataContext) saveSessions() error {
 			}).Error("uplink/data: save passive-roaming device-session error")
 		}
 	}
-
+	
 	return nil
 }
 
 func (ctx *roamingDataContext) startPassiveRoamingSession(netID lorawan.NetID) (storage.PassiveRoamingDeviceSession, error) {
 	var out storage.PassiveRoamingDeviceSession
-
+	
 	client, err := roaming.GetClientForNetID(netID)
 	if err != nil {
 		return out, errors.Wrap(err, "get backend client error")
 	}
-
+	
 	phyB, err := ctx.rxPacket.PHYPayload.MarshalBinary()
 	if err != nil {
 		return out, errors.Wrap(err, "marshal phypayload error")
 	}
-
+	
 	ulFreq := float64(ctx.rxPacket.TXInfo.Frequency) / 1000000
 	gwCnt := len(ctx.rxPacket.RXInfoSet)
 	gwInfo, err := roaming.RXInfoToGWInfo(ctx.rxPacket.RXInfoSet)
 	if err != nil {
 		return out, errors.Wrap(err, "rxinfo to gwinfo error")
 	}
-
+	
 	req := backend.PRStartReqPayload{
 		PHYPayload: backend.HEXBytes(phyB),
 		ULMetaData: backend.ULMetaData{
@@ -201,49 +201,49 @@ func (ctx *roamingDataContext) startPassiveRoamingSession(netID lorawan.NetID) (
 			GWInfo:   gwInfo,
 		},
 	}
-
+	
 	log.WithFields(log.Fields{
 		"ctx_id":   ctx.ctx.Value(logging.ContextIDKey),
 		"dev_addr": ctx.macPayload.FHDR.DevAddr,
 		"net_id":   netID,
 	}).Info("uplink/data: starting passive-roaming session")
-
+	
 	resp, err := client.PRStartReq(ctx.ctx, req)
 	if err != nil {
 		return out, errors.Wrap(err, "request error")
 	}
-
+	
 	if resp.Result.ResultCode != backend.Success {
 		return out, fmt.Errorf("expected: %s, got: %s (%s)", backend.Success, resp.Result.ResultCode, resp.Result.Description)
 	}
-
+	
 	out.NetID = netID
 	out.DevAddr = ctx.macPayload.FHDR.DevAddr
 	out.SessionID, err = uuid.NewV4()
 	if err != nil {
 		return out, errors.Wrap(err, "new uuid error")
 	}
-
+	
 	// DevEUI
 	if devEUI := resp.DevEUI; devEUI != nil {
 		out.DevEUI = *devEUI
 	}
-
+	
 	// Lifetime
 	if lifetime := resp.Lifetime; lifetime != nil && *lifetime != 0 {
 		out.Lifetime = time.Now().Add(time.Duration(*lifetime) * time.Second)
 	}
-
+	
 	// FNwkSIntKey (LoRaWAN 1.1)
 	if fNwkSIntKey := resp.FNwkSIntKey; fNwkSIntKey != nil {
 		out.LoRaWAN11 = true
-
+		
 		if fNwkSIntKey.KEKLabel != "" {
 			kek, err := roaming.GetKEKKey(fNwkSIntKey.KEKLabel)
 			if err != nil {
 				return out, err
 			}
-
+			
 			key, err := fNwkSIntKey.Unwrap(kek)
 			if err != nil {
 				return out, errors.Wrap(err, "key unwrap error")
@@ -253,7 +253,7 @@ func (ctx *roamingDataContext) startPassiveRoamingSession(netID lorawan.NetID) (
 			copy(out.FNwkSIntKey[:], fNwkSIntKey.AESKey[:])
 		}
 	}
-
+	
 	// NwkSKey (LoRaWAN 1.0)
 	if nwkSKey := resp.NwkSKey; nwkSKey != nil {
 		if nwkSKey.KEKLabel != "" {
@@ -261,7 +261,7 @@ func (ctx *roamingDataContext) startPassiveRoamingSession(netID lorawan.NetID) (
 			if err != nil {
 				return out, err
 			}
-
+			
 			key, err := nwkSKey.Unwrap(kek)
 			if err != nil {
 				return out, errors.Wrap(err, "key unwrap error")
@@ -271,12 +271,12 @@ func (ctx *roamingDataContext) startPassiveRoamingSession(netID lorawan.NetID) (
 			copy(out.FNwkSIntKey[:], nwkSKey.AESKey[:])
 		}
 	}
-
+	
 	// FCntUp
 	if fCntUp := resp.FCntUp; fCntUp != nil {
 		out.FCntUp = *fCntUp + 1
 	}
-
+	
 	return out, nil
 }
 
@@ -285,10 +285,10 @@ func (ctx *roamingDataContext) xmitDataUplink(client backend.Client) error {
 	if err != nil {
 		return errors.Wrap(err, "marshal phypayload error")
 	}
-
+	
 	ulFreq := float64(ctx.rxPacket.TXInfo.Frequency) / 1000000
 	gwCnt := len(ctx.rxPacket.RXInfoSet)
-
+	
 	req := backend.XmitDataReqPayload{
 		PHYPayload: backend.HEXBytes(phyB),
 		ULMetaData: &backend.ULMetaData{
@@ -300,21 +300,21 @@ func (ctx *roamingDataContext) xmitDataUplink(client backend.Client) error {
 			GWCnt:    &gwCnt,
 		},
 	}
-
+	
 	gwInfo, err := roaming.RXInfoToGWInfo(ctx.rxPacket.RXInfoSet)
 	if err != nil {
 		return errors.Wrap(err, "rxinfo to gwinfo error")
 	}
 	req.ULMetaData.GWInfo = gwInfo
-
+	
 	resp, err := client.XmitDataReq(ctx.ctx, req)
 	if err != nil {
 		return errors.Wrap(err, "request error")
 	}
-
+	
 	if resp.Result.ResultCode != backend.Success {
 		return fmt.Errorf("expected: %s, got: %s (%s)", backend.Success, resp.Result.ResultCode, resp.Result.Description)
 	}
-
+	
 	return nil
 }

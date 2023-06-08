@@ -3,17 +3,17 @@ package helpers
 import (
 	"context"
 	"fmt"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/backend/applicationserver"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
 	"github.com/gofrs/uuid"
-
+	"github.com/risinghf/lorawan"
+	
 	"github.com/brocaar/chirpstack-api/go/v3/as"
 	"github.com/brocaar/chirpstack-api/go/v3/common"
 	"github.com/brocaar/chirpstack-api/go/v3/gw"
-	"github.com/brocaar/lorawan/band"
 	"github.com/pkg/errors"
+	"github.com/risinghf/lorawan/band"
 )
 
 const defaultCodeRate = "4/5"
@@ -42,7 +42,7 @@ func SetDownlinkTXInfoDataRate(txInfo *gw.DownlinkTXInfo, dr int, b band.Band) e
 	if err != nil {
 		return errors.Wrap(err, "get data-rate error")
 	}
-
+	
 	// note: LR-FHSS is uplink only, no need to handle it here.
 	switch dataRate.Modulation {
 	case band.LoRaModulation:
@@ -66,7 +66,7 @@ func SetDownlinkTXInfoDataRate(txInfo *gw.DownlinkTXInfo, dr int, b band.Band) e
 	default:
 		return fmt.Errorf("unexpected modulation: %s", dataRate.Modulation)
 	}
-
+	
 	return nil
 }
 
@@ -76,7 +76,7 @@ func SetUplinkTXInfoDataRate(txInfo *gw.UplinkTXInfo, dr int, b band.Band) error
 	if err != nil {
 		return errors.Wrap(err, "get data-rate error")
 	}
-
+	
 	switch dataRate.Modulation {
 	case band.LoRaModulation:
 		txInfo.Modulation = common.Modulation_LORA
@@ -97,7 +97,7 @@ func SetUplinkTXInfoDataRate(txInfo *gw.UplinkTXInfo, dr int, b band.Band) error
 		}
 	case band.LRFHSSModulation:
 		txInfo.Modulation = common.Modulation_LR_FHSS
-
+		
 		txInfo.ModulationInfo = &gw.UplinkTXInfo_LrFhssModulationInfo{
 			LrFhssModulationInfo: &gw.LRFHSSModulationInfo{
 				OperatingChannelWidth: uint32(dataRate.OccupiedChannelWidth),
@@ -108,7 +108,7 @@ func SetUplinkTXInfoDataRate(txInfo *gw.UplinkTXInfo, dr int, b band.Band) error
 	default:
 		return fmt.Errorf("unknown modulation: %s", dataRate.Modulation)
 	}
-
+	
 	return nil
 }
 
@@ -149,7 +149,7 @@ func GetDownlinkID(v DownlinkIDGetter) uuid.UUID {
 // GetDataRateIndex returns the data-rate index.
 func GetDataRateIndex(uplink bool, v DataRateGetter, b band.Band) (int, error) {
 	var dr band.DataRate
-
+	
 	switch v.GetModulation() {
 	case common.Modulation_LORA:
 		modInfo := v.GetLoraModulationInfo()
@@ -177,7 +177,7 @@ func GetDataRateIndex(uplink bool, v DataRateGetter, b band.Band) (int, error) {
 	default:
 		return 0, fmt.Errorf("unknown modulation: %s", v.GetModulation())
 	}
-
+	
 	return b.GetDataRateIndex(uplink, dr)
 }
 
@@ -187,11 +187,11 @@ func GetASClientForRoutingProfileID(ctx context.Context, id uuid.UUID) (as.Appli
 	if err != nil {
 		return nil, errors.Wrap(err, "get routing-profile error")
 	}
-
+	
 	asClient, err := applicationserver.Pool().Get(rp.ASID, []byte(rp.CACert), []byte(rp.TLSCert), []byte(rp.TLSKey))
 	if err != nil {
 		return nil, errors.Wrap(err, "get application-server client error")
 	}
-
+	
 	return asClient, nil
 }

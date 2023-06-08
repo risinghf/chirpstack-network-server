@@ -3,15 +3,15 @@ package storage
 import (
 	"context"
 	"time"
-
+	
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/gps"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/helpers/classb"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/logging"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 const (
@@ -50,7 +50,7 @@ func CreateDeviceQueueItem(ctx context.Context, db sqlx.Queryer, qi *DeviceQueue
 	if err := qi.Validate(); err != nil {
 		return err
 	}
-
+	
 	// If the device is operating in Class-B and has a beacon lock, calculate
 	// the next ping-slot.
 	if qi.TimeoutAfter == nil && qi.EmitAtTimeSinceGPSEpoch == nil && dp.SupportsClassB && ds.BeaconLocked {
@@ -60,31 +60,31 @@ func CreateDeviceQueueItem(ctx context.Context, db sqlx.Queryer, qi *DeviceQueue
 		if err != nil {
 			return errors.Wrap(err, "get max emit-at time since gps epoch for deveui error")
 		}
-
+		
 		// If no queue-items exist, we start at the current time.
 		if scheduleAfterGPSEpochTS == 0 {
 			scheduleAfterGPSEpochTS = gps.Time(time.Now()).TimeSinceGPSEpoch()
 		}
-
+		
 		// Add some margin.
 		scheduleAfterGPSEpochTS += classBScheduleMargin
-
+		
 		// Calculate the next ping-slot after scheduleAfterGPSEpochTS.
 		gpsEpochTS, err := classb.GetNextPingSlotAfter(scheduleAfterGPSEpochTS, ds.DevAddr, ds.PingSlotNb)
 		if err != nil {
 			return errors.Wrap(err, "get next ping-slot error")
 		}
-
+		
 		// We expect an ACK after Class-B Timeout.
 		timeoutTime := time.Time(gps.NewFromTimeSinceGPSEpoch(gpsEpochTS)).Add(time.Second * time.Duration(dp.ClassBTimeout))
 		qi.EmitAtTimeSinceGPSEpoch = &gpsEpochTS
 		qi.TimeoutAfter = &timeoutTime
 	}
-
+	
 	now := time.Now()
 	qi.CreatedAt = now
 	qi.UpdatedAt = now
-
+	
 	err := sqlx.Get(db, &qi.ID, `
         insert into device_queue (
             created_at,
@@ -117,13 +117,13 @@ func CreateDeviceQueueItem(ctx context.Context, db sqlx.Queryer, qi *DeviceQueue
 	if err != nil {
 		return handlePSQLError(err, "insert error")
 	}
-
+	
 	log.WithFields(log.Fields{
 		"dev_eui": qi.DevEUI,
 		"f_cnt":   qi.FCnt,
 		"ctx_id":  ctx.Value(logging.ContextIDKey),
 	}).Info("device-queue item created")
-
+	
 	return nil
 }
 
@@ -140,7 +140,7 @@ func GetDeviceQueueItem(ctx context.Context, db sqlx.Queryer, id int64) (DeviceQ
 // UpdateDeviceQueueItem updates the given device-queue item.
 func UpdateDeviceQueueItem(ctx context.Context, db sqlx.Execer, qi *DeviceQueueItem) error {
 	qi.UpdatedAt = time.Now()
-
+	
 	res, err := db.Exec(`
         update device_queue
         set
@@ -180,7 +180,7 @@ func UpdateDeviceQueueItem(ctx context.Context, db sqlx.Execer, qi *DeviceQueueI
 	if ra == 0 {
 		return ErrDoesNotExist
 	}
-
+	
 	log.WithFields(log.Fields{
 		"f_cnt":                        qi.FCnt,
 		"dev_eui":                      qi.DevEUI,
@@ -189,7 +189,7 @@ func UpdateDeviceQueueItem(ctx context.Context, db sqlx.Execer, qi *DeviceQueueI
 		"timeout_after":                qi.TimeoutAfter,
 		"ctx_id":                       ctx.Value(logging.ContextIDKey),
 	}).Info("device-queue item updated")
-
+	
 	return nil
 }
 
@@ -206,12 +206,12 @@ func DeleteDeviceQueueItem(ctx context.Context, db sqlx.Execer, id int64) error 
 	if ra == 0 {
 		return ErrDoesNotExist
 	}
-
+	
 	log.WithFields(log.Fields{
 		"id":     id,
 		"ctx_id": ctx.Value(logging.ContextIDKey),
 	}).Info("device-queue deleted")
-
+	
 	return nil
 }
 
@@ -221,12 +221,12 @@ func FlushDeviceQueueForDevEUI(ctx context.Context, db sqlx.Execer, devEUI loraw
 	if err != nil {
 		return handlePSQLError(err, "delete error")
 	}
-
+	
 	log.WithFields(log.Fields{
 		"ctx_id":  ctx.Value(logging.ContextIDKey),
 		"dev_eui": devEUI,
 	}).Info("device-queue flushed")
-
+	
 	return nil
 }
 
@@ -250,20 +250,20 @@ func GetNextDeviceQueueItemForDevEUI(ctx context.Context, db sqlx.Queryer, devEU
 	if err != nil {
 		return DeviceQueueItem{}, false, handlePSQLError(err, "select error")
 	}
-
+	
 	if len(items) == 0 {
 		return DeviceQueueItem{}, false, ErrDoesNotExist
 	}
-
+	
 	// we are interested in the first item
 	qi := items[0]
-
+	
 	// In case the transmission is pending and hasn't timed-out yet, do not
 	// return it.
 	if qi.IsPending && qi.TimeoutAfter != nil && qi.TimeoutAfter.After(time.Now()) {
 		return DeviceQueueItem{}, false, ErrDoesNotExist
 	}
-
+	
 	return qi, len(items) > 1, nil
 }
 
@@ -286,11 +286,11 @@ func GetPendingDeviceQueueItemForDevEUI(ctx context.Context, db sqlx.Queryer, de
 	if err != nil {
 		return qi, handlePSQLError(err, "select error")
 	}
-
+	
 	if !qi.IsPending {
 		return qi, ErrDoesNotExist
 	}
-
+	
 	return qi, nil
 }
 
@@ -312,7 +312,7 @@ func GetDeviceQueueItemsForDevEUI(ctx context.Context, db sqlx.Queryer, devEUI l
 	if err != nil {
 		return nil, handlePSQLError(err, "select error")
 	}
-
+	
 	return items, nil
 }
 
@@ -331,7 +331,7 @@ func GetDeviceQueueItemCountForDevEUI(ctx context.Context, db sqlx.Queryer, devE
 	if err != nil {
 		return 0, handlePSQLError(err, "select error")
 	}
-
+	
 	return count, nil
 }
 
@@ -341,7 +341,7 @@ func GetDeviceQueueItemCountForDevEUI(ctx context.Context, db sqlx.Queryer, devE
 // run this query in parallel without the risk of duplicate scheduling.
 func GetDevicesWithClassBOrClassCDeviceQueueItems(ctx context.Context, db sqlx.Ext, count int) ([]Device, error) {
 	gpsEpochScheduleTime := gps.Time(time.Now().Add(schedulerInterval * 2)).TimeSinceGPSEpoch()
-
+	
 	var devices []Device
 	err := sqlx.Select(db, &devices, `
         select
@@ -393,7 +393,7 @@ func GetDevicesWithClassBOrClassCDeviceQueueItems(ctx context.Context, db sqlx.E
 	if err != nil {
 		return nil, handlePSQLError(err, "select error")
 	}
-
+	
 	return devices, nil
 }
 
@@ -413,6 +413,6 @@ func GetMaxEmitAtTimeSinceGPSEpochForDevEUI(ctx context.Context, db sqlx.Queryer
 	if err != nil {
 		return 0, handlePSQLError(err, "select error")
 	}
-
+	
 	return timeSinceGPSEpoch, nil
 }

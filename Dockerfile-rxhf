@@ -1,0 +1,12 @@
+From ubuntu:20.04
+RUN apt-get update
+RUN apt-get install -y ca-certificates
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get install -y tzdata
+RUN apt-get install -y curl
+RUN apt-get update
+RUN apt-get install -y git make libtool libarchive-dev pkg-config libcurl4-openssl-dev libssl-dev libgpgme11-dev liblzma-dev liblz4-dev libbz2-dev libzstd-dev libxml2-dev nettle-dev acl-dev zlib1g-dev
+RUN cd /home;git clone git://git.yoctoproject.org/opkg;cd opkg;autoreconf -i;./configure --with-static-libopkg  --disable-dependency-tracking; make; make install
+
+COPY ./build/chirpstack-network-server /usr/bin/chirpstack-network-server
+CMD ["/usr/bin/chirpstack-network-server"]

@@ -4,14 +4,14 @@ import (
 	"context"
 	"fmt"
 	"sort"
-
+	
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/logging"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
-	"github.com/brocaar/lorawan/band"
+	"github.com/risinghf/lorawan"
+	"github.com/risinghf/lorawan/band"
 )
 
 // RequestNewChannels creates or modifies the non-common bi-directional
@@ -21,14 +21,14 @@ import (
 // modify must be given. In case of no changes, nil is returned.
 func RequestNewChannels(devEUI lorawan.EUI64, maxChannels int, currentChannels, wantedChannels map[int]band.Channel) *storage.MACCommandBlock {
 	var out []lorawan.MACCommand
-
+	
 	// sort by channel index
 	var wantedChannelNumbers []int
 	for i := range wantedChannels {
 		wantedChannelNumbers = append(wantedChannelNumbers, i)
 	}
 	sort.Ints(wantedChannelNumbers)
-
+	
 	for _, i := range wantedChannelNumbers {
 		wanted := wantedChannels[i]
 		current, ok := currentChannels[i]
@@ -44,15 +44,15 @@ func RequestNewChannels(devEUI lorawan.EUI64, maxChannels int, currentChannels, 
 			})
 		}
 	}
-
+	
 	if len(out) > maxChannels {
 		out = out[0:maxChannels]
 	}
-
+	
 	if len(out) == 0 {
 		return nil
 	}
-
+	
 	return &storage.MACCommandBlock{
 		CID:         lorawan.NewChannelReq,
 		MACCommands: storage.MACCommands(out),
@@ -63,36 +63,36 @@ func handleNewChannelAns(ctx context.Context, ds *storage.DeviceSession, block s
 	if len(block.MACCommands) == 0 {
 		return nil, errors.New("at least 1 mac-command expected, got none")
 	}
-
+	
 	if pending == nil || len(pending.MACCommands) == 0 {
 		return nil, errors.New("expected pending mac-command")
 	}
-
+	
 	if len(block.MACCommands) != len(pending.MACCommands) {
 		return nil, fmt.Errorf("received %d mac-command answers, but requested %d", len(block.MACCommands), len(pending.MACCommands))
 	}
-
+	
 	for i := range block.MACCommands {
 		pl, ok := block.MACCommands[i].Payload.(*lorawan.NewChannelAnsPayload)
 		if !ok {
 			return nil, fmt.Errorf("expected *lorawan.NewChannelAnsPayload, got %T", block.MACCommands[i].Payload)
 		}
-
+		
 		pendingPL, ok := pending.MACCommands[i].Payload.(*lorawan.NewChannelReqPayload)
 		if !ok {
 			return nil, fmt.Errorf("expected *lorawan.NewChannelReqPayload, got %T", pending.MACCommands[i].Payload)
 		}
-
+		
 		if pl.ChannelFrequencyOK && pl.DataRateRangeOK {
 			// reset the error counter
 			delete(ds.MACCommandErrorCount, lorawan.NewChannelAns)
-
+			
 			ds.ExtraUplinkChannels[int(pendingPL.ChIndex)] = band.Channel{
 				Frequency: pendingPL.Freq,
 				MinDR:     int(pendingPL.MinDR),
 				MaxDR:     int(pendingPL.MaxDR),
 			}
-
+			
 			var found bool
 			for _, i := range ds.EnabledUplinkChannels {
 				if i == int(pendingPL.ChIndex) {
@@ -102,7 +102,7 @@ func handleNewChannelAns(ctx context.Context, ds *storage.DeviceSession, block s
 			if !found {
 				ds.EnabledUplinkChannels = append(ds.EnabledUplinkChannels, int(pendingPL.ChIndex))
 			}
-
+			
 			log.WithFields(log.Fields{
 				"frequency": pendingPL.Freq,
 				"channel":   pendingPL.ChIndex,
@@ -114,7 +114,7 @@ func handleNewChannelAns(ctx context.Context, ds *storage.DeviceSession, block s
 		} else {
 			// increase error counter
 			ds.MACCommandErrorCount[lorawan.NewChannelAns]++
-
+			
 			log.WithFields(log.Fields{
 				"frequency":            pendingPL.Freq,
 				"channel":              pendingPL.ChIndex,
@@ -127,6 +127,6 @@ func handleNewChannelAns(ctx context.Context, ds *storage.DeviceSession, block s
 			}).Warning("new_channel request not acknowledged")
 		}
 	}
-
+	
 	return nil, nil
 }

@@ -2,12 +2,12 @@ package gcppubsub
 
 import (
 	"testing"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/gw"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/backend/gateway/marshaler"
-	"github.com/brocaar/lorawan"
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
+	"github.com/risinghf/lorawan"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -29,7 +29,7 @@ func (ts *BackendTestSuite) SetupSuite() {
 func (ts *BackendTestSuite) TestHandleUplinkFrame() {
 	assert := require.New(ts.T())
 	gatewayID := lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8}
-
+	
 	testTable := []struct {
 		UplinkFrame   gw.UplinkFrame
 		ExpectedError error
@@ -62,24 +62,24 @@ func (ts *BackendTestSuite) TestHandleUplinkFrame() {
 			},
 		},
 	}
-
+	
 	for _, test := range testTable {
 		b, err := proto.Marshal(&test.UplinkFrame)
 		assert.NoError(err)
-
+		
 		err = ts.backend.handleUplinkFrame(gatewayID, b)
 		if err != nil {
 			assert.EqualError(err, test.ExpectedError.Error())
 		} else {
 			assert.NoError(test.ExpectedError)
 		}
-
+		
 		assert.Equal(marshaler.Protobuf, ts.backend.gatewayMarshaler[gatewayID])
-
+		
 		if err != nil {
 			continue
 		}
-
+		
 		rec := <-ts.backend.RXPacketChan()
 		proto.Equal(&test.UplinkFrame, &rec)
 	}
@@ -88,7 +88,7 @@ func (ts *BackendTestSuite) TestHandleUplinkFrame() {
 func (ts *BackendTestSuite) TestHandleGatewayStats() {
 	assert := require.New(ts.T())
 	gatewayID := lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8}
-
+	
 	testTable := []struct {
 		GatewayStats  gw.GatewayStats
 		ExpectedError error
@@ -103,24 +103,24 @@ func (ts *BackendTestSuite) TestHandleGatewayStats() {
 			},
 		},
 	}
-
+	
 	for _, test := range testTable {
 		b, err := proto.Marshal(&test.GatewayStats)
 		assert.NoError(err)
-
+		
 		err = ts.backend.handleGatewayStats(gatewayID, b)
 		if err != nil {
 			assert.EqualError(err, test.ExpectedError.Error())
 		} else {
 			assert.NoError(test.ExpectedError)
 		}
-
+		
 		assert.Equal(marshaler.Protobuf, ts.backend.gatewayMarshaler[gatewayID])
-
+		
 		if err != nil {
 			continue
 		}
-
+		
 		rec := <-ts.backend.StatsPacketChan()
 		proto.Equal(&test.GatewayStats, &rec)
 	}
@@ -129,7 +129,7 @@ func (ts *BackendTestSuite) TestHandleGatewayStats() {
 func (ts *BackendTestSuite) TestHandleDownlinkTXAck() {
 	assert := require.New(ts.T())
 	gatewayID := lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8}
-
+	
 	testTable := []struct {
 		DownlinkTXAck gw.DownlinkTXAck
 		ExpectedError error
@@ -144,28 +144,28 @@ func (ts *BackendTestSuite) TestHandleDownlinkTXAck() {
 			},
 		},
 	}
-
+	
 	for _, test := range testTable {
 		b, err := proto.Marshal(&test.DownlinkTXAck)
 		assert.NoError(err)
-
+		
 		err = ts.backend.handleDownlinkTXAck(gatewayID, b)
 		if err != nil {
 			assert.EqualError(err, test.ExpectedError.Error())
 		} else {
 			assert.NoError(test.ExpectedError)
 		}
-
+		
 		assert.Equal(marshaler.Protobuf, ts.backend.gatewayMarshaler[gatewayID])
-
+		
 		if err != nil {
 			continue
 		}
-
+		
 		rec := <-ts.backend.DownlinkTXAckChan()
 		proto.Equal(&test.DownlinkTXAck, &rec)
 	}
-
+	
 }
 
 func TestBackend(t *testing.T) {

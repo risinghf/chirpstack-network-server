@@ -5,17 +5,17 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"time"
-
+	
 	"github.com/gofrs/uuid"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/require"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/as"
 	"github.com/brocaar/chirpstack-api/go/v3/gw"
 	"github.com/brocaar/chirpstack-api/go/v3/nc"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
-	"github.com/brocaar/lorawan/backend"
+	"github.com/risinghf/lorawan"
+	"github.com/risinghf/lorawan/backend"
 )
 
 var lastToken uint32
@@ -62,14 +62,14 @@ func AssertDownlinkFrame(gatewayID lorawan.EUI64, txInfo gw.DownlinkTXInfo, phy 
 		downlinkFrame := <-ts.GWBackend.TXPacketChan
 		assert.NotEqual(0, downlinkFrame.Token)
 		lastToken = downlinkFrame.Token
-
+		
 		assert.True(len(downlinkFrame.Items) != 0)
 		assert.Equal(gatewayID[:], downlinkFrame.GatewayId)
-
+		
 		if !proto.Equal(&txInfo, downlinkFrame.Items[0].TxInfo) {
 			assert.Equal(txInfo, downlinkFrame.Items[0].TxInfo)
 		}
-
+		
 		switch phy.MHDR.MType {
 		case lorawan.UnconfirmedDataDown, lorawan.ConfirmedDataDown:
 			b, err := phy.MarshalBinary()
@@ -77,7 +77,7 @@ func AssertDownlinkFrame(gatewayID lorawan.EUI64, txInfo gw.DownlinkTXInfo, phy 
 			assert.NoError(phy.UnmarshalBinary(b))
 			assert.NoError(phy.DecodeFOptsToMACCommands())
 		}
-
+		
 		var downPHY lorawan.PHYPayload
 		assert.NoError(downPHY.UnmarshalBinary(downlinkFrame.Items[0].PhyPayload))
 		switch downPHY.MHDR.MType {
@@ -86,7 +86,7 @@ func AssertDownlinkFrame(gatewayID lorawan.EUI64, txInfo gw.DownlinkTXInfo, phy 
 		case lorawan.JoinAccept:
 			assert.NoError(downPHY.DecryptJoinAcceptPayload(ts.JoinAcceptKey))
 		}
-
+		
 		assert.Equal(phy, downPHY)
 	}
 }
@@ -95,28 +95,28 @@ func AssertDownlinkFrameSaved(gatewayID lorawan.EUI64, devEUI lorawan.EUI64, mcG
 	return func(assert *require.Assertions, ts *IntegrationTestSuite) {
 		df, err := storage.GetDownlinkFrame(context.Background(), uint16(lastToken))
 		assert.NoError(err)
-
+		
 		assert.True(len(df.DownlinkFrame.Items) > 0, "empty downlink-frames")
-
+		
 		assert.Equal(gatewayID[:], df.DownlinkFrame.GatewayId)
-
+		
 		// if DevEUI is given, validate it
 		var euiNil lorawan.EUI64
 		if devEUI != euiNil {
 			assert.Equal(devEUI[:], df.DevEui)
 		}
-
+		
 		// if mc group id is given, validate it
 		if mcGroupID != uuid.Nil {
 			assert.Equal(mcGroupID[:], df.MulticastGroupId)
 		}
-
+		
 		downlinkFrame := df.DownlinkFrame.Items[0]
-
+		
 		if !proto.Equal(&txInfo, downlinkFrame.TxInfo) {
 			assert.Equal(txInfo, *downlinkFrame.TxInfo)
 		}
-
+		
 		switch phy.MHDR.MType {
 		case lorawan.UnconfirmedDataDown, lorawan.ConfirmedDataDown:
 			b, err := phy.MarshalBinary()
@@ -124,7 +124,7 @@ func AssertDownlinkFrameSaved(gatewayID lorawan.EUI64, devEUI lorawan.EUI64, mcG
 			assert.NoError(phy.UnmarshalBinary(b))
 			assert.NoError(phy.DecodeFOptsToMACCommands())
 		}
-
+		
 		var downPHY lorawan.PHYPayload
 		assert.NoError(downPHY.UnmarshalBinary(downlinkFrame.PhyPayload))
 		switch downPHY.MHDR.MType {
@@ -133,9 +133,9 @@ func AssertDownlinkFrameSaved(gatewayID lorawan.EUI64, devEUI lorawan.EUI64, mcG
 		case lorawan.JoinAccept:
 			assert.NoError(downPHY.DecryptJoinAcceptPayload(ts.JoinAcceptKey))
 		}
-
+		
 		assert.Equal(phy, downPHY)
-
+		
 		// pop the frame that we have been validating, so that we can validate the next one
 		df.DownlinkFrame.Items = df.DownlinkFrame.Items[1:]
 		assert.NoError(storage.SaveDownlinkFrame(context.Background(), df))
@@ -226,13 +226,13 @@ func AssertJSJoinReqPayload(pl backend.JoinReqPayload) Assertion {
 	return func(assert *require.Assertions, ts *IntegrationTestSuite) {
 		var req backend.JoinReqPayload
 		assert.NoError(json.Unmarshal(<-ts.backendAPIRequest, &req))
-
+		
 		assert.NotEqual("", req.TransactionID)
 		req.BasePayload.TransactionID = 0
-
+		
 		assert.NotEqual(lorawan.DevAddr{}, req.DevAddr)
 		req.DevAddr = lorawan.DevAddr{}
-
+		
 		assert.Equal(req, pl)
 	}
 }
@@ -242,13 +242,13 @@ func AssertJSRejoinReqPayload(pl backend.RejoinReqPayload) Assertion {
 	return func(assert *require.Assertions, ts *IntegrationTestSuite) {
 		var req backend.RejoinReqPayload
 		assert.NoError(json.Unmarshal(<-ts.backendAPIRequest, &req))
-
+		
 		assert.NotEqual("", req.TransactionID)
 		req.BasePayload.TransactionID = 0
-
+		
 		assert.NotEqual(lorawan.DevAddr{}, req.DevAddr)
 		req.DevAddr = lorawan.DevAddr{}
-
+		
 		assert.Equal(pl, req)
 	}
 }
@@ -258,15 +258,15 @@ func AssertDeviceSession(ds storage.DeviceSession) Assertion {
 	return func(assert *require.Assertions, ts *IntegrationTestSuite) {
 		sess, err := storage.GetDeviceSession(context.Background(), ts.Device.DevEUI)
 		assert.NoError(err)
-
+		
 		assert.NotEqual(lorawan.DevAddr{}, sess.DevAddr)
 		sess.DevAddr = lorawan.DevAddr{}
-
+		
 		if sess.PendingRejoinDeviceSession != nil {
 			assert.NotEqual(lorawan.DevAddr{}, sess.PendingRejoinDeviceSession.DevAddr)
 			sess.PendingRejoinDeviceSession.DevAddr = lorawan.DevAddr{}
 		}
-
+		
 		assert.Equal(ds, sess)
 	}
 }
@@ -276,7 +276,7 @@ func AssertDeviceSessionDR(dr int) Assertion {
 	return func(assert *require.Assertions, ts *IntegrationTestSuite) {
 		sess, err := storage.GetDeviceSession(context.Background(), ts.Device.DevEUI)
 		assert.NoError(err)
-
+		
 		assert.Equal(dr, sess.DR)
 	}
 }
@@ -286,7 +286,7 @@ func AssertDeviceSessionTXPowerIndex(txPowerIndex int) Assertion {
 	return func(assert *require.Assertions, ts *IntegrationTestSuite) {
 		sess, err := storage.GetDeviceSession(context.Background(), ts.Device.DevEUI)
 		assert.NoError(err)
-
+		
 		assert.Equal(txPowerIndex, sess.TXPowerIndex)
 	}
 }
@@ -296,7 +296,7 @@ func AssertDeviceSessionUplinkHistory(uh []storage.UplinkHistory) Assertion {
 	return func(assert *require.Assertions, ts *IntegrationTestSuite) {
 		sess, err := storage.GetDeviceSession(context.Background(), ts.Device.DevEUI)
 		assert.NoError(err)
-
+		
 		assert.Equal(uh, sess.UplinkHistory)
 	}
 }
@@ -306,10 +306,10 @@ func AssertDeviceActivation(da storage.DeviceActivation) Assertion {
 	return func(assert *require.Assertions, ts *IntegrationTestSuite) {
 		act, err := storage.GetLastDeviceActivationForDevEUI(context.Background(), storage.DB(), ts.Device.DevEUI)
 		assert.NoError(err)
-
+		
 		assert.NotEqual(lorawan.DevAddr{}, act.DevAddr)
 		act.DevAddr = lorawan.DevAddr{}
-
+		
 		assert.Equal(da, act)
 	}
 }

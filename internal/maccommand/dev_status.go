@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"time"
-
+	
 	log "github.com/sirupsen/logrus"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/as"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/logging"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 // RequestDevStatus returns a mac-command block for requesting the device-status.
@@ -35,19 +35,19 @@ func handleDevStatusAns(ctx context.Context, ds *storage.DeviceSession, sp stora
 	if len(block.MACCommands) != 1 {
 		return nil, fmt.Errorf("exactly one mac-command expected, got %d", len(block.MACCommands))
 	}
-
+	
 	pl, ok := block.MACCommands[0].Payload.(*lorawan.DevStatusAnsPayload)
 	if !ok {
 		return nil, fmt.Errorf("expected *lorawan.DevStatusAnsPayload, got %T", block.MACCommands[0].Payload)
 	}
-
+	
 	log.WithFields(log.Fields{
 		"dev_eui": ds.DevEUI,
 		"battery": pl.Battery,
 		"margin":  pl.Margin,
 		"ctx_id":  ctx.Value(logging.ContextIDKey),
 	}).Info("dev_status_ans answer received")
-
+	
 	if !sp.ReportDevStatusBattery && !sp.ReportDevStatusMargin {
 		log.WithFields(log.Fields{
 			"dev_eui": ds.DevEUI,
@@ -55,15 +55,15 @@ func handleDevStatusAns(ctx context.Context, ds *storage.DeviceSession, sp stora
 		}).Warning("reporting device-status has been disabled in service-profile")
 		return nil, nil
 	}
-
+	
 	go func() {
 		req := as.SetDeviceStatusRequest{
 			DevEui: ds.DevEUI[:],
 		}
-
+		
 		if sp.ReportDevStatusBattery {
 			req.Battery = uint32(pl.Battery)
-
+			
 			switch pl.Battery {
 			case 255:
 				req.BatteryLevelUnavailable = true
@@ -72,18 +72,18 @@ func handleDevStatusAns(ctx context.Context, ds *storage.DeviceSession, sp stora
 			default:
 				req.BatteryLevel = float32(pl.Battery) / 254 * 100
 			}
-
+			
 			if pl.Battery == 255 {
 				req.BatteryLevelUnavailable = true
 			}
 		} else {
 			req.BatteryLevelUnavailable = true
 		}
-
+		
 		if sp.ReportDevStatusMargin {
 			req.Margin = int32(pl.Margin)
 		}
-
+		
 		_, err := asClient.SetDeviceStatus(ctx, &req)
 		if err != nil {
 			log.WithFields(log.Fields{
@@ -92,6 +92,6 @@ func handleDevStatusAns(ctx context.Context, ds *storage.DeviceSession, sp stora
 			}).WithError(err).Error("as.SetDeviceStatus error")
 		}
 	}()
-
+	
 	return nil, nil
 }

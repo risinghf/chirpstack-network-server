@@ -3,21 +3,21 @@ package gateway
 import (
 	"errors"
 	"testing"
-
+	
 	"github.com/stretchr/testify/require"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/band"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/test"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 func TestSelectDownlinkGateway(t *testing.T) {
 	assert := require.New(t)
-
+	
 	config := test.GetConfig()
 	assert.NoError(band.Setup(config))
-
+	
 	tests := []struct {
 		Name          string
 		MinSNRMargin  float64
@@ -121,14 +121,14 @@ func TestSelectDownlinkGateway(t *testing.T) {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		t.Run(tst.Name, func(t *testing.T) {
 			assert := require.New(t)
-
+			
 			if len(tst.ExpectedIn) > 1 {
 				outMap := make(map[lorawan.EUI64]struct{})
-
+				
 				for i := 0; i < 100*len(tst.ExpectedIn); i++ {
 					out, err := SelectDownlinkGateway(tst.MinSNRMargin, tst.DR, tst.RxInfo)
 					if tst.ExpectedError != nil {
@@ -139,11 +139,11 @@ func TestSelectDownlinkGateway(t *testing.T) {
 					assert.Contains(tst.ExpectedIn, out)
 					outMap[out.GatewayID] = struct{}{}
 				}
-
+				
 				// assert that we did receive different values
 				assert.Equal(len(tst.ExpectedIn), len(outMap))
 			}
-
+			
 		})
 	}
 }

@@ -3,14 +3,14 @@ package storage
 import (
 	"context"
 	"time"
-
+	
 	"github.com/gofrs/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/logging"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 // MulticastGroupType type defines the multicast-group type.
@@ -66,7 +66,7 @@ func CreateMulticastGroup(ctx context.Context, db sqlx.Execer, mg *MulticastGrou
 	now := time.Now()
 	mg.CreatedAt = now
 	mg.UpdatedAt = now
-
+	
 	if mg.ID == uuid.Nil {
 		var err error
 		mg.ID, err = uuid.NewV4()
@@ -74,7 +74,7 @@ func CreateMulticastGroup(ctx context.Context, db sqlx.Execer, mg *MulticastGrou
 			return errors.Wrap(err, "new uuid v4 error")
 		}
 	}
-
+	
 	_, err := db.Exec(`
 		insert into multicast_group (
 			id,
@@ -106,12 +106,12 @@ func CreateMulticastGroup(ctx context.Context, db sqlx.Execer, mg *MulticastGrou
 	if err != nil {
 		return handlePSQLError(err, "insert error")
 	}
-
+	
 	log.WithFields(log.Fields{
 		"id":     mg.ID,
 		"ctx_id": ctx.Value(logging.ContextIDKey),
 	}).Info("multicast-group created")
-
+	
 	return nil
 }
 
@@ -119,11 +119,11 @@ func CreateMulticastGroup(ctx context.Context, db sqlx.Execer, mg *MulticastGrou
 func GetMulticastGroup(ctx context.Context, db sqlx.Queryer, id uuid.UUID, forUpdate bool) (MulticastGroup, error) {
 	var mg MulticastGroup
 	var fu string
-
+	
 	if forUpdate {
 		fu = " for update"
 	}
-
+	
 	err := sqlx.Get(db, &mg, `
 		select
 			*
@@ -142,7 +142,7 @@ func GetMulticastGroup(ctx context.Context, db sqlx.Queryer, id uuid.UUID, forUp
 // UpdateMulticastGroup updates the given multicast-grup.
 func UpdateMulticastGroup(ctx context.Context, db sqlx.Execer, mg *MulticastGroup) error {
 	mg.UpdatedAt = time.Now()
-
+	
 	res, err := db.Exec(`
 		update
 			multicast_group
@@ -181,12 +181,12 @@ func UpdateMulticastGroup(ctx context.Context, db sqlx.Execer, mg *MulticastGrou
 	if ra == 0 {
 		return ErrDoesNotExist
 	}
-
+	
 	log.WithFields(log.Fields{
 		"id":     mg.ID,
 		"ctx_id": ctx.Value(logging.ContextIDKey),
 	}).Info("multicast-group updated")
-
+	
 	return nil
 }
 
@@ -202,7 +202,7 @@ func DeleteMulticastGroup(ctx context.Context, db sqlx.Execer, id uuid.UUID) err
 	if err != nil {
 		return handlePSQLError(err, "delete error")
 	}
-
+	
 	ra, err := res.RowsAffected()
 	if err != nil {
 		return handlePSQLError(err, "get rows affected error")
@@ -210,12 +210,12 @@ func DeleteMulticastGroup(ctx context.Context, db sqlx.Execer, id uuid.UUID) err
 	if ra == 0 {
 		return ErrDoesNotExist
 	}
-
+	
 	log.WithFields(log.Fields{
 		"id":     id,
 		"ctx_id": ctx.Value(logging.ContextIDKey),
 	}).Info("multicast-group deleted")
-
+	
 	return nil
 }
 
@@ -224,11 +224,11 @@ func CreateMulticastQueueItem(ctx context.Context, db sqlx.Queryer, qi *Multicas
 	if err := qi.Validate(); err != nil {
 		return err
 	}
-
+	
 	now := time.Now()
 	qi.CreatedAt = now
 	qi.UpdatedAt = now
-
+	
 	err := sqlx.Get(db, &qi.ID, `
 		insert into multicast_queue (
 			created_at,
@@ -259,7 +259,7 @@ func CreateMulticastQueueItem(ctx context.Context, db sqlx.Queryer, qi *Multicas
 	if err != nil {
 		return handlePSQLError(err, "insert error")
 	}
-
+	
 	log.WithFields(log.Fields{
 		"id":                 qi.ID,
 		"f_cnt":              qi.FCnt,
@@ -267,7 +267,7 @@ func CreateMulticastQueueItem(ctx context.Context, db sqlx.Queryer, qi *Multicas
 		"multicast_group_id": qi.MulticastGroupID,
 		"ctx_id":             ctx.Value(logging.ContextIDKey),
 	}).Info("multicast queue-item created")
-
+	
 	return nil
 }
 
@@ -284,7 +284,7 @@ func GetMulticastQueueItem(ctx context.Context, db sqlx.Queryer, id int64) (Mult
 // UpdateMulticastQueueItem updates the given multicast queue-item.
 func UpdateMulticastQueueItem(ctx context.Context, db sqlx.Execer, qi *MulticastQueueItem) error {
 	qi.UpdatedAt = time.Now()
-
+	
 	res, err := db.Exec(`
 		update multicast_queue
 		set
@@ -313,7 +313,7 @@ func UpdateMulticastQueueItem(ctx context.Context, db sqlx.Execer, qi *Multicast
 	if err != nil {
 		return handlePSQLError(err, "update error")
 	}
-
+	
 	ra, err := res.RowsAffected()
 	if err != nil {
 		return errors.Wrap(err, "get rows affected error")
@@ -321,7 +321,7 @@ func UpdateMulticastQueueItem(ctx context.Context, db sqlx.Execer, qi *Multicast
 	if ra == 0 {
 		return ErrDoesNotExist
 	}
-
+	
 	log.WithFields(log.Fields{
 		"id":                 qi.ID,
 		"f_cnt":              qi.FCnt,
@@ -329,7 +329,7 @@ func UpdateMulticastQueueItem(ctx context.Context, db sqlx.Execer, qi *Multicast
 		"multicast_group_id": qi.MulticastGroupID,
 		"ctx_id":             ctx.Value(logging.ContextIDKey),
 	}).Info("mutlicast queue-item updated")
-
+	
 	return nil
 }
 
@@ -351,12 +351,12 @@ func DeleteMulticastQueueItem(ctx context.Context, db sqlx.Execer, id int64) err
 	if ra == 0 {
 		return ErrDoesNotExist
 	}
-
+	
 	log.WithFields(log.Fields{
 		"id":     id,
 		"ctx_id": ctx.Value(logging.ContextIDKey),
 	}).Info("multicast queue-item deleted")
-
+	
 	return nil
 }
 
@@ -372,12 +372,12 @@ func FlushMulticastQueueForMulticastGroup(ctx context.Context, db sqlx.Execer, m
 	if err != nil {
 		return handlePSQLError(err, "delete error")
 	}
-
+	
 	log.WithFields(log.Fields{
 		"multicast_group_id": multicastGroupID,
 		"ctx_id":             ctx.Value(logging.ContextIDKey),
 	}).Info("multicast-group queue flushed")
-
+	
 	return nil
 }
 
@@ -385,7 +385,7 @@ func FlushMulticastQueueForMulticastGroup(ctx context.Context, db sqlx.Execer, m
 // a multicast-group id.
 func GetMulticastQueueItemsForMulticastGroup(ctx context.Context, db sqlx.Queryer, multicastGroupID uuid.UUID) ([]MulticastQueueItem, error) {
 	var items []MulticastQueueItem
-
+	
 	err := sqlx.Select(db, &items, `
 		select
 			*
@@ -399,7 +399,7 @@ func GetMulticastQueueItemsForMulticastGroup(ctx context.Context, db sqlx.Querye
 	if err != nil {
 		return nil, handlePSQLError(err, "select error")
 	}
-
+	
 	return items, nil
 }
 
@@ -424,7 +424,7 @@ func GetSchedulableMulticastQueueItems(ctx context.Context, db sqlx.Ext, count i
 	if err != nil {
 		return nil, handlePSQLError(err, "select error")
 	}
-
+	
 	return items, nil
 }
 
@@ -443,7 +443,7 @@ func GetMaxEmitAtTimeSinceGPSEpochForMulticastGroup(ctx context.Context, db sqlx
 	if err != nil {
 		return 0, handlePSQLError(err, "select error")
 	}
-
+	
 	return timeSinceGPSEpoch, nil
 }
 
@@ -451,7 +451,7 @@ func GetMaxEmitAtTimeSinceGPSEpochForMulticastGroup(ctx context.Context, db sqlx
 // for the given multicast-group.
 func GetMaxScheduleAtForMulticastGroup(ctx context.Context, db sqlx.Queryer, multicastGroupID uuid.UUID) (time.Time, error) {
 	ts := new(time.Time)
-
+	
 	err := sqlx.Get(db, &ts, `
 		select
 			max(schedule_at)
@@ -463,7 +463,7 @@ func GetMaxScheduleAtForMulticastGroup(ctx context.Context, db sqlx.Queryer, mul
 	if err != nil {
 		return time.Time{}, handlePSQLError(err, "select error")
 	}
-
+	
 	if ts != nil {
 		return *ts, nil
 	}

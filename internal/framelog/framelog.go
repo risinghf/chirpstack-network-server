@@ -2,17 +2,17 @@ package framelog
 
 import (
 	"context"
-
+	
 	"github.com/go-redis/redis/v8"
 	proto "github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/pkg/errors"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/gw"
 	"github.com/brocaar/chirpstack-api/go/v3/ns"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/config"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 const (
@@ -31,11 +31,11 @@ type FrameLog struct {
 // LogUplinkFrameForGateways logs the given frame to all the gateway pub-sub keys.
 func LogUplinkFrameForGateways(ctx context.Context, frame ns.UplinkFrameLog) error {
 	conf := config.Get()
-
+	
 	for _, rx := range frame.RxInfo {
 		var id lorawan.EUI64
 		copy(id[:], rx.GatewayId)
-
+		
 		frameLog := ns.UplinkFrameLog{
 			PublishedAt: ptypes.TimestampNow(),
 			PhyPayload:  frame.PhyPayload,
@@ -45,17 +45,17 @@ func LogUplinkFrameForGateways(ctx context.Context, frame ns.UplinkFrameLog) err
 			DevAddr:     frame.DevAddr,
 			DevEui:      frame.DevEui,
 		}
-
+		
 		b, err := proto.Marshal(&frameLog)
 		if err != nil {
 			return errors.Wrap(err, "marshal uplink frame-set error")
 		}
-
+		
 		// per gateway stream
 		if conf.Monitoring.PerGatewayFrameLogMaxHistory > 0 {
 			key := storage.GetRedisKey(gatewayFrameLogStreamKey, id)
 			pipe := storage.RedisClient().TxPipeline()
-
+			
 			pipe.XAdd(ctx, &redis.XAddArgs{
 				Stream: key,
 				MaxLen: conf.Monitoring.PerGatewayFrameLogMaxHistory,
@@ -64,13 +64,13 @@ func LogUplinkFrameForGateways(ctx context.Context, frame ns.UplinkFrameLog) err
 				},
 			})
 			pipe.Expire(ctx, key, conf.NetworkServer.DeviceSessionTTL)
-
+			
 			_, err := pipe.Exec(ctx)
 			if err != nil {
 				return errors.Wrap(err, "redis xadd error")
 			}
 		}
-
+		
 		// global gateway stream
 		if conf.Monitoring.GatewayFrameLogMaxHistory > 0 {
 			key := storage.GetRedisKey(globalGatewayFrameStreamKey)
@@ -85,7 +85,7 @@ func LogUplinkFrameForGateways(ctx context.Context, frame ns.UplinkFrameLog) err
 			}
 		}
 	}
-
+	
 	return nil
 }
 
@@ -94,20 +94,20 @@ func LogDownlinkFrameForGateway(ctx context.Context, frame ns.DownlinkFrameLog) 
 	conf := config.Get()
 	var id lorawan.EUI64
 	copy(id[:], frame.GatewayId)
-
+	
 	// Set published at
 	frame.PublishedAt = ptypes.TimestampNow()
-
+	
 	b, err := proto.Marshal(&frame)
 	if err != nil {
 		return errors.Wrap(err, "marshal downlink frame error")
 	}
-
+	
 	// per gateway stream
 	if conf.Monitoring.PerGatewayFrameLogMaxHistory > 0 {
 		key := storage.GetRedisKey(gatewayFrameLogStreamKey, id)
 		pipe := storage.RedisClient().TxPipeline()
-
+		
 		pipe.XAdd(ctx, &redis.XAddArgs{
 			Stream: key,
 			MaxLen: conf.Monitoring.PerGatewayFrameLogMaxHistory,
@@ -116,13 +116,13 @@ func LogDownlinkFrameForGateway(ctx context.Context, frame ns.DownlinkFrameLog) 
 			},
 		})
 		pipe.Expire(ctx, key, conf.NetworkServer.DeviceSessionTTL)
-
+		
 		_, err := pipe.Exec(ctx)
 		if err != nil {
 			return errors.Wrap(err, "redis xadd error")
 		}
 	}
-
+	
 	// global gateway stream
 	if conf.Monitoring.GatewayFrameLogMaxHistory > 0 {
 		key := storage.GetRedisKey(globalGatewayFrameStreamKey)
@@ -136,27 +136,27 @@ func LogDownlinkFrameForGateway(ctx context.Context, frame ns.DownlinkFrameLog) 
 			return errors.Wrap(err, "redis xadd error")
 		}
 	}
-
+	
 	return nil
 }
 
 // LogUplinkFrameForDevEUI logs the given frame to the pub-sub key of the given DevEUI.
 func LogUplinkFrameForDevEUI(ctx context.Context, devEUI lorawan.EUI64, frame ns.UplinkFrameLog) error {
 	conf := config.Get()
-
+	
 	// Set published at
 	frame.PublishedAt = ptypes.TimestampNow()
-
+	
 	b, err := proto.Marshal(&frame)
 	if err != nil {
 		return errors.Wrap(err, "marshal uplink frame error")
 	}
-
+	
 	// per device stream
 	if conf.Monitoring.PerDeviceFrameLogMaxHistory > 0 {
 		key := storage.GetRedisKey(deviceFrameLogStreamKey, devEUI)
 		pipe := storage.RedisClient().TxPipeline()
-
+		
 		pipe.XAdd(ctx, &redis.XAddArgs{
 			Stream: key,
 			MaxLen: conf.Monitoring.PerDeviceFrameLogMaxHistory,
@@ -165,13 +165,13 @@ func LogUplinkFrameForDevEUI(ctx context.Context, devEUI lorawan.EUI64, frame ns
 			},
 		})
 		pipe.Expire(ctx, key, conf.NetworkServer.DeviceSessionTTL)
-
+		
 		_, err := pipe.Exec(ctx)
 		if err != nil {
 			return errors.Wrap(err, "redis xadd error")
 		}
 	}
-
+	
 	// global device stream
 	if conf.Monitoring.DeviceFrameLogMaxHistory > 0 {
 		key := storage.GetRedisKey(globalDeviceFrameStreamKey)
@@ -185,27 +185,27 @@ func LogUplinkFrameForDevEUI(ctx context.Context, devEUI lorawan.EUI64, frame ns
 			return errors.Wrap(err, "redis xadd error")
 		}
 	}
-
+	
 	return nil
 }
 
 // LogDownlinkFrameForDevEUI logs the given frame to the device pub-sub key.
 func LogDownlinkFrameForDevEUI(ctx context.Context, devEUI lorawan.EUI64, frame ns.DownlinkFrameLog) error {
 	conf := config.Get()
-
+	
 	// Set published at
 	frame.PublishedAt = ptypes.TimestampNow()
-
+	
 	b, err := proto.Marshal(&frame)
 	if err != nil {
 		return errors.Wrap(err, "marshal downlink frame error")
 	}
-
+	
 	// per device stream
 	if conf.Monitoring.PerDeviceFrameLogMaxHistory > 0 {
 		key := storage.GetRedisKey(deviceFrameLogStreamKey, devEUI)
 		pipe := storage.RedisClient().TxPipeline()
-
+		
 		pipe.XAdd(ctx, &redis.XAddArgs{
 			Stream: key,
 			MaxLen: conf.Monitoring.PerDeviceFrameLogMaxHistory,
@@ -214,13 +214,13 @@ func LogDownlinkFrameForDevEUI(ctx context.Context, devEUI lorawan.EUI64, frame 
 			},
 		})
 		pipe.Expire(ctx, key, conf.NetworkServer.DeviceSessionTTL)
-
+		
 		_, err := pipe.Exec(ctx)
 		if err != nil {
 			return errors.Wrap(err, "redis xadd error")
 		}
 	}
-
+	
 	// global device stream
 	if conf.Monitoring.DeviceFrameLogMaxHistory > 0 {
 		key := storage.GetRedisKey(globalDeviceFrameStreamKey)
@@ -234,7 +234,7 @@ func LogDownlinkFrameForDevEUI(ctx context.Context, devEUI lorawan.EUI64, frame 
 			return errors.Wrap(err, "redis xadd error")
 		}
 	}
-
+	
 	return nil
 }
 
@@ -254,7 +254,7 @@ func GetFrameLogForDevice(ctx context.Context, devEUI lorawan.EUI64, frameLogCha
 
 func getFrameLogs(ctx context.Context, key string, count int64, frameLogChan chan FrameLog) error {
 	lastID := "0"
-
+	
 	for {
 		resp, err := storage.RedisClient().XRead(ctx, &redis.XReadArgs{
 			Streams: []string{key, lastID},
@@ -267,39 +267,39 @@ func getFrameLogs(ctx context.Context, key string, count int64, frameLogChan cha
 			}
 			return errors.Wrap(err, "redis stream error")
 		}
-
+		
 		if len(resp) != 1 {
 			return errors.New("exactly one stream response expected")
 		}
-
+		
 		for _, msg := range resp[0].Messages {
 			lastID = msg.ID
-
+			
 			if val, ok := msg.Values["up"]; ok {
 				b, ok := val.(string)
 				if !ok {
 					continue
 				}
-
+				
 				fl := FrameLog{UplinkFrame: &ns.UplinkFrameLog{}}
 				if err := proto.Unmarshal([]byte(b), fl.UplinkFrame); err != nil {
 					return errors.Wrap(err, "unmarshal uplink frame error")
 				}
-
+				
 				frameLogChan <- fl
 			}
-
+			
 			if val, ok := msg.Values["down"]; ok {
 				b, ok := val.(string)
 				if !ok {
 					continue
 				}
-
+				
 				fl := FrameLog{DownlinkFrame: &ns.DownlinkFrameLog{}}
 				if err := proto.Unmarshal([]byte(b), fl.DownlinkFrame); err != nil {
 					return errors.Wrap(err, "unmarshal downlink frame error")
 				}
-
+				
 				frameLogChan <- fl
 			}
 		}

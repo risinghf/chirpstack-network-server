@@ -7,10 +7,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
-
+	
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/nc"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/backend/controller"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/backend/joinserver"
@@ -22,9 +22,9 @@ import (
 	"github.com/brocaar/chirpstack-network-server/v3/internal/logging"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/models"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
-	"github.com/brocaar/lorawan/backend"
-	loraband "github.com/brocaar/lorawan/band"
+	"github.com/risinghf/lorawan"
+	"github.com/risinghf/lorawan/backend"
+	loraband "github.com/risinghf/lorawan/band"
 )
 
 // ErrAbort is used to abort the flow without error
@@ -59,22 +59,22 @@ var tasks = []func(*rejoinContext) error{
 
 type rejoinContext struct {
 	ctx context.Context
-
+	
 	RXPacket   models.RXPacket
 	RejoinType lorawan.JoinType
 	RJCount    uint16
-
+	
 	NetID   lorawan.NetID
 	DevEUI  lorawan.EUI64
 	JoinEUI lorawan.EUI64
-
+	
 	Device         storage.Device
 	ServiceProfile storage.ServiceProfile
 	DeviceProfile  storage.DeviceProfile
 	DeviceSession  storage.DeviceSession
-
+	
 	DevAddr lorawan.DevAddr
-
+	
 	RejoinAnsPayload backend.RejoinAnsPayload
 }
 
@@ -89,21 +89,21 @@ var (
 // Setup configures the package.
 func Setup(conf config.Config) error {
 	keks = make(map[string][]byte)
-
+	
 	netID = conf.NetworkServer.NetID
 	rx2DR = conf.NetworkServer.NetworkSettings.RX2DR
 	rx1DROffset = conf.NetworkServer.NetworkSettings.RX1DROffset
 	rx1Delay = conf.NetworkServer.NetworkSettings.RX1Delay
-
+	
 	for _, k := range conf.JoinServer.KEK.Set {
 		kek, err := hex.DecodeString(k.KEK)
 		if err != nil {
 			return errors.Wrap(err, "decode kek error")
 		}
-
+		
 		keks[k.Label] = kek
 	}
-
+	
 	return nil
 }
 
@@ -113,7 +113,7 @@ func Handle(ctx context.Context, rxPacket models.RXPacket) error {
 		ctx:      ctx,
 		RXPacket: rxPacket,
 	}
-
+	
 	for _, t := range tasks {
 		if err := t(&rjctx); err != nil {
 			if err == ErrAbort {
@@ -122,7 +122,7 @@ func Handle(ctx context.Context, rxPacket models.RXPacket) error {
 			return err
 		}
 	}
-
+	
 	return nil
 }
 
@@ -137,7 +137,7 @@ func forRejoinType(types []lorawan.JoinType, tasks ...func(*rejoinContext) error
 				}
 			}
 		}
-
+		
 		return nil
 	}
 }
@@ -157,7 +157,7 @@ func setContextFromRejoinRequestPHY(ctx *rejoinContext) error {
 	default:
 		return fmt.Errorf("expected *lorawan.RejoinRequestType02Payload or *lorawan.RejoinRequestType1Payload, got: %T", ctx.RXPacket.PHYPayload.MACPayload)
 	}
-
+	
 	return nil
 }
 
@@ -166,18 +166,18 @@ func logRejoinRequestFramesCollected(ctx *rejoinContext) error {
 	for _, p := range ctx.RXPacket.RXInfoSet {
 		gatewayIDs = append(gatewayIDs, helpers.GetGatewayID(p).String())
 	}
-
+	
 	uplinkFrameLog, err := framelog.CreateUplinkFrameLog(ctx.RXPacket)
 	if err != nil {
 		return errors.Wrap(err, "create uplink frame-set error")
 	}
-
+	
 	uplinkFrameLog.DevEui = ctx.DevEUI[:]
-
+	
 	if err := framelog.LogUplinkFrameForDevEUI(ctx.ctx, ctx.DevEUI, uplinkFrameLog); err != nil {
 		log.WithError(err).Error("log uplink frame for device error")
 	}
-
+	
 	log.WithFields(log.Fields{
 		"dev_eui":     ctx.DevEUI,
 		"gw_count":    len(gatewayIDs),
@@ -185,32 +185,32 @@ func logRejoinRequestFramesCollected(ctx *rejoinContext) error {
 		"mtype":       ctx.RXPacket.PHYPayload.MHDR.MType,
 		"rejoin_type": ctx.RejoinType,
 	}).Info("packet(s) collected")
-
+	
 	return nil
 }
 
 func getDeviceAndProfiles(ctx *rejoinContext) error {
 	var err error
-
+	
 	ctx.Device, err = storage.GetDevice(ctx.ctx, storage.DB(), ctx.DevEUI, false)
 	if err != nil {
 		return errors.Wrap(err, "get device error")
 	}
-
+	
 	ctx.DeviceProfile, err = storage.GetDeviceProfile(ctx.ctx, storage.DB(), ctx.Device.DeviceProfileID)
 	if err != nil {
 		return errors.Wrap(err, "get device-profile error")
 	}
-
+	
 	ctx.ServiceProfile, err = storage.GetServiceProfile(ctx.ctx, storage.DB(), ctx.Device.ServiceProfileID)
 	if err != nil {
 		return errors.Wrap(err, "get service-profile error")
 	}
-
+	
 	if !ctx.DeviceProfile.SupportsJoin {
 		return errors.New("device does not support join")
 	}
-
+	
 	return nil
 }
 
@@ -233,7 +233,7 @@ func filterRxInfoByServiceProfile(ctx *rejoinContext) error {
 		}
 		return err
 	}
-
+	
 	return nil
 }
 
@@ -252,13 +252,13 @@ func validateRejoinCounter0(ctx *rejoinContext) error {
 	if ctx.RJCount >= ctx.DeviceSession.RejoinCount0 {
 		// Increment it so that it can't be re-used
 		ctx.DeviceSession.RejoinCount0 = ctx.RJCount + 1
-
+		
 		if ctx.DeviceSession.RejoinCount0 == 0 {
 			return errors.New("RJcount0 rollover detected")
 		}
 		return nil
 	}
-
+	
 	return errors.New("invalid RJcount0")
 }
 
@@ -267,11 +267,11 @@ func validateMIC(ctx *rejoinContext) error {
 	if err != nil {
 		return err
 	}
-
+	
 	if ok {
 		return nil
 	}
-
+	
 	return errors.New("invalid MIC")
 }
 
@@ -289,14 +289,14 @@ func getRejoinAcceptFromJS(ctx *rejoinContext) error {
 	if err != nil {
 		return errors.Wrap(err, "PHYPayload marshal binary error")
 	}
-
+	
 	randomBytes := make([]byte, 4)
 	_, err = rand.Read(randomBytes)
 	if err != nil {
 		return errors.Wrap(err, "read random bytes error")
 	}
 	transactionID := binary.LittleEndian.Uint32(randomBytes)
-
+	
 	rejoinReqPL := backend.RejoinReqPayload{
 		BasePayload: backend.BasePayload{
 			ProtocolVersion: backend.ProtocolVersion1_0,
@@ -316,7 +316,7 @@ func getRejoinAcceptFromJS(ctx *rejoinContext) error {
 		},
 		RxDelay: rx1Delay,
 	}
-
+	
 	// 0: Used to reset a device rejoinContext including all radio parameters.
 	// 1: Exactly equivalent to the initial Join-Request message but may
 	//    be transmitted on top of normal applicative traffic without
@@ -333,17 +333,17 @@ func getRejoinAcceptFromJS(ctx *rejoinContext) error {
 			rejoinReqPL.CFList = backend.HEXBytes(cFListB)
 		}
 	}
-
+	
 	jsClient, err := joinserver.GetClientForJoinEUI(ctx.DeviceSession.JoinEUI)
 	if err != nil {
 		return errors.Wrap(err, "get join-server client error")
 	}
-
+	
 	ctx.RejoinAnsPayload, err = jsClient.RejoinReq(ctx.ctx, rejoinReqPL)
 	if err != nil {
 		return errors.Wrap(err, "rejoin-request to join-server error")
 	}
-
+	
 	return nil
 }
 
@@ -351,19 +351,19 @@ func sendUplinkMetaDataToNetworkController(ctx *rejoinContext) error {
 	if controller.Client() == nil {
 		return nil
 	}
-
+	
 	req := nc.HandleUplinkMetaDataRequest{
 		DevEui:      ctx.DevEUI[:],
 		TxInfo:      ctx.RXPacket.TXInfo,
 		RxInfo:      ctx.RXPacket.RXInfoSet,
 		MessageType: nc.MType_REJOIN_REQUEST,
 	}
-
+	
 	// set phypayload size
 	if b, err := ctx.RXPacket.PHYPayload.MarshalBinary(); err == nil {
 		req.PhyPayloadByteCount = uint32(len(b))
 	}
-
+	
 	// send async to controller
 	go func() {
 		_, err := controller.Client().HandleUplinkMetaData(ctx.ctx, &req)
@@ -374,13 +374,13 @@ func sendUplinkMetaDataToNetworkController(ctx *rejoinContext) error {
 			}).Error("sent uplink meta-data to network-controller error")
 			return
 		}
-
+		
 		log.WithFields(log.Fields{
 			"dev_eui": ctx.DevEUI,
 			"ctx_id":  ctx.ctx.Value(logging.ContextIDKey),
 		}).Info("sent uplink meta-data to network-controller")
 	}()
-
+	
 	return nil
 }
 
@@ -396,7 +396,7 @@ func setRejoin0PendingDeviceSession(ctx *rejoinContext) error {
 		DeviceProfileID:  ctx.Device.DeviceProfileID,
 		ServiceProfileID: ctx.Device.ServiceProfileID,
 		RoutingProfileID: ctx.Device.RoutingProfileID,
-
+		
 		MACVersion:            ctx.DeviceProfile.MACVersion,
 		DevAddr:               ctx.DevAddr,
 		JoinEUI:               ctx.DeviceSession.JoinEUI,
@@ -413,63 +413,63 @@ func setRejoin0PendingDeviceSession(ctx *rejoinContext) error {
 		PingSlotFrequency:     ctx.DeviceProfile.PingSlotFreq,
 		NbTrans:               1,
 	}
-
+	
 	if ctx.RejoinAnsPayload.AppSKey != nil {
 		pendingDS.AppSKeyEvelope = &storage.KeyEnvelope{
 			KEKLabel: ctx.RejoinAnsPayload.AppSKey.KEKLabel,
 			AESKey:   ctx.RejoinAnsPayload.AppSKey.AESKey,
 		}
 	}
-
+	
 	if ctx.RejoinAnsPayload.NwkSKey != nil {
 		key, err := unwrapNSKeyEnvelope(ctx.RejoinAnsPayload.NwkSKey)
 		if err != nil {
 			return err
 		}
-
+		
 		pendingDS.SNwkSIntKey = key
 		pendingDS.FNwkSIntKey = key
 		pendingDS.NwkSEncKey = key
 	}
-
+	
 	if ctx.RejoinAnsPayload.SNwkSIntKey != nil {
 		key, err := unwrapNSKeyEnvelope(ctx.RejoinAnsPayload.SNwkSIntKey)
 		if err != nil {
 			return err
 		}
-
+		
 		pendingDS.SNwkSIntKey = key
 	}
-
+	
 	if ctx.RejoinAnsPayload.FNwkSIntKey != nil {
 		key, err := unwrapNSKeyEnvelope(ctx.RejoinAnsPayload.FNwkSIntKey)
 		if err != nil {
 			return err
 		}
-
+		
 		pendingDS.FNwkSIntKey = key
 	}
-
+	
 	if ctx.RejoinAnsPayload.NwkSEncKey != nil {
 		key, err := unwrapNSKeyEnvelope(ctx.RejoinAnsPayload.NwkSEncKey)
 		if err != nil {
 			return err
 		}
-
+		
 		pendingDS.NwkSEncKey = key
 	}
-
+	
 	if cfList := band.Band().GetCFList(ctx.DeviceSession.MACVersion); cfList != nil && cfList.CFListType == lorawan.CFListChannel {
 		channelPL, ok := cfList.Payload.(*lorawan.CFListChannelPayload)
 		if !ok {
 			return fmt.Errorf("expected *lorawan.CFListChannelPayload, got %T", cfList.Payload)
 		}
-
+		
 		for _, f := range channelPL.Channels {
 			if f == 0 {
 				continue
 			}
-
+			
 			i, err := band.Band().GetUplinkChannelIndex(f, false)
 			if err != nil {
 				// if this happens, something is really wrong
@@ -478,10 +478,10 @@ func setRejoin0PendingDeviceSession(ctx *rejoinContext) error {
 				}).Error("unknown fclist frequency")
 				continue
 			}
-
+			
 			// add extra channel to enabled channels
 			pendingDS.EnabledUplinkChannels = append(pendingDS.EnabledUplinkChannels, i)
-
+			
 			// add extra channel to extra uplink channels, so that we can
 			// keep track on frequency and data-rate changes
 			c, err := band.Band().GetUplinkChannel(i)
@@ -491,17 +491,17 @@ func setRejoin0PendingDeviceSession(ctx *rejoinContext) error {
 			pendingDS.ExtraUplinkChannels[i] = c
 		}
 	}
-
+	
 	if ctx.DeviceProfile.PingSlotPeriod != 0 {
 		pendingDS.PingSlotNb = (1 << 12) / ctx.DeviceProfile.PingSlotPeriod
 	}
-
+	
 	ctx.DeviceSession.PendingRejoinDeviceSession = &pendingDS
-
+	
 	if err := storage.SaveDeviceSession(ctx.ctx, ctx.DeviceSession); err != nil {
 		return errors.Wrap(err, "save device-session error")
 	}
-
+	
 	return nil
 }
 
@@ -512,58 +512,58 @@ func setRejoin2PendingDeviceSession(ctx *rejoinContext) error {
 	pendingDS.NFCntDown = 0
 	pendingDS.AFCntDown = 0
 	pendingDS.RejoinCount0 = 0
-
+	
 	if ctx.RejoinAnsPayload.AppSKey != nil {
 		pendingDS.AppSKeyEvelope = &storage.KeyEnvelope{
 			KEKLabel: ctx.RejoinAnsPayload.AppSKey.KEKLabel,
 			AESKey:   ctx.RejoinAnsPayload.AppSKey.AESKey,
 		}
 	}
-
+	
 	if ctx.RejoinAnsPayload.NwkSKey != nil {
 		key, err := unwrapNSKeyEnvelope(ctx.RejoinAnsPayload.NwkSKey)
 		if err != nil {
 			return err
 		}
-
+		
 		pendingDS.SNwkSIntKey = key
 		pendingDS.FNwkSIntKey = key
 		pendingDS.NwkSEncKey = key
 	}
-
+	
 	if ctx.RejoinAnsPayload.SNwkSIntKey != nil {
 		key, err := unwrapNSKeyEnvelope(ctx.RejoinAnsPayload.SNwkSIntKey)
 		if err != nil {
 			return err
 		}
-
+		
 		pendingDS.SNwkSIntKey = key
 	}
-
+	
 	if ctx.RejoinAnsPayload.FNwkSIntKey != nil {
 		key, err := unwrapNSKeyEnvelope(ctx.RejoinAnsPayload.FNwkSIntKey)
 		if err != nil {
 			return err
 		}
-
+		
 		pendingDS.FNwkSIntKey = key
 	}
-
+	
 	if ctx.RejoinAnsPayload.NwkSEncKey != nil {
 		key, err := unwrapNSKeyEnvelope(ctx.RejoinAnsPayload.NwkSEncKey)
 		if err != nil {
 			return err
 		}
-
+		
 		pendingDS.NwkSEncKey = key
 	}
-
+	
 	ctx.DeviceSession.PendingRejoinDeviceSession = &pendingDS
-
+	
 	if err := storage.SaveDeviceSession(ctx.ctx, ctx.DeviceSession); err != nil {
 		return errors.Wrap(err, "save device-session error")
 	}
-
+	
 	return nil
 }
 
@@ -571,7 +571,7 @@ func createDeviceActivation(ctx *rejoinContext) error {
 	if ctx.DeviceSession.PendingRejoinDeviceSession == nil {
 		return errors.New("pending rejoin device-session must not be nil")
 	}
-
+	
 	da := storage.DeviceActivation{
 		DevEUI:      ctx.DeviceSession.PendingRejoinDeviceSession.DevEUI,
 		JoinEUI:     ctx.DeviceSession.PendingRejoinDeviceSession.JoinEUI,
@@ -582,11 +582,11 @@ func createDeviceActivation(ctx *rejoinContext) error {
 		DevNonce:    lorawan.DevNonce(ctx.RJCount),
 		JoinReqType: lorawan.JoinType(ctx.RejoinType),
 	}
-
+	
 	if err := storage.CreateDeviceActivation(ctx.ctx, storage.DB(), &da); err != nil {
 		return errors.Wrap(err, "create device-activation error")
 	}
-
+	
 	return nil
 }
 
@@ -595,11 +595,11 @@ func sendJoinAcceptDownlink(ctx *rejoinContext) error {
 	if err := phy.UnmarshalBinary(ctx.RejoinAnsPayload.PHYPayload[:]); err != nil {
 		return errors.Wrap(err, "unmarshal downlink phypayload error")
 	}
-
+	
 	if err := joindown.Handle(ctx.ctx, ctx.DeviceSession, ctx.RXPacket, phy); err != nil {
 		return errors.Wrap(err, "join join-response flow error")
 	}
-
+	
 	return nil
 }
 

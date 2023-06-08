@@ -2,17 +2,17 @@ package testsuite
 
 import (
 	"testing"
-
+	
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/gw"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/band"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/downlink"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/helpers"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/test"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 type ClassCTestSuite struct {
@@ -22,19 +22,19 @@ type ClassCTestSuite struct {
 func (ts *ClassCTestSuite) SetupTest() {
 	assert := require.New(ts.T())
 	ts.IntegrationTestSuite.SetupTest()
-
+	
 	conf := test.GetConfig()
 	conf.NetworkServer.NetworkSettings.RX2DR = 5
 	assert.NoError(downlink.Setup(conf))
-
+	
 	ts.CreateDeviceProfile(storage.DeviceProfile{SupportsClassC: true})
-
+	
 	ts.CreateDevice(storage.Device{
 		Mode: storage.DeviceModeC,
 	})
-
+	
 	ts.CreateGateway(storage.Gateway{})
-
+	
 	// note that the CreateDeviceSession will automatically set
 	// the device, profiles etc.. :)
 	ds := storage.DeviceSession{
@@ -43,20 +43,20 @@ func (ts *ClassCTestSuite) SetupTest() {
 		EnabledUplinkChannels: []int{0, 1, 2},
 		RX2DR:                 5,
 		RX2Frequency:          869525000,
-
+		
 		DevAddr:     lorawan.DevAddr{1, 2, 3, 4},
 		FNwkSIntKey: lorawan.AES128Key{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
 		SNwkSIntKey: lorawan.AES128Key{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
 		NwkSEncKey:  lorawan.AES128Key{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
 	}
 	ts.CreateDeviceSession(ds)
-
+	
 }
 
 func (ts *ClassCTestSuite) TestClassC() {
 	assert := require.New(ts.T())
 	defaults := band.Band().GetDefaults()
-
+	
 	txInfo := gw.DownlinkTXInfo{
 		Board:     1,
 		Antenna:   2,
@@ -68,9 +68,9 @@ func (ts *ClassCTestSuite) TestClassC() {
 		},
 	}
 	assert.NoError(helpers.SetDownlinkTXInfoDataRate(&txInfo, 5, band.Band()))
-
+	
 	fPortTen := uint8(10)
-
+	
 	tests := []DownlinkTest{
 		{
 			Name:          "unconfirmed data",
@@ -182,7 +182,7 @@ func (ts *ClassCTestSuite) TestClassC() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertDownlinkTest(t, tst)

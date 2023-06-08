@@ -4,11 +4,11 @@ import (
 	"context"
 	"testing"
 	"time"
-
+	
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/as"
 	"github.com/brocaar/chirpstack-api/go/v3/common"
 	"github.com/brocaar/chirpstack-api/go/v3/gw"
@@ -19,13 +19,13 @@ import (
 	"github.com/brocaar/chirpstack-network-server/v3/internal/models"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/test"
-	"github.com/brocaar/lorawan"
-	loraband "github.com/brocaar/lorawan/band"
+	"github.com/risinghf/lorawan"
+	loraband "github.com/risinghf/lorawan/band"
 )
 
 type GetNextDeviceQueueItemTestSuite struct {
 	suite.Suite
-
+	
 	asClient       *test.ApplicationClient
 	device         storage.Device
 	serviceProfile storage.ServiceProfile
@@ -37,22 +37,22 @@ func (ts *GetNextDeviceQueueItemTestSuite) SetupSuite() {
 	assert := require.New(ts.T())
 	conf := test.GetConfig()
 	assert.NoError(storage.Setup(conf))
-
+	
 	assert.NoError(storage.MigrateDown(storage.DB().DB))
 	assert.NoError(storage.MigrateUp(storage.DB().DB))
-
+	
 	ts.asClient = test.NewApplicationClient()
 	applicationserver.SetPool(test.NewApplicationServerPool(ts.asClient))
-
+	
 	ts.deviceProfile = storage.DeviceProfile{
 		SupportsClassB: true,
 		ClassBTimeout:  60,
 	}
-
+	
 	assert.NoError(storage.CreateServiceProfile(context.Background(), storage.DB(), &ts.serviceProfile))
 	assert.NoError(storage.CreateDeviceProfile(context.Background(), storage.DB(), &ts.deviceProfile))
 	assert.NoError(storage.CreateRoutingProfile(context.Background(), storage.DB(), &ts.routingProfile))
-
+	
 	ts.device = storage.Device{
 		DevEUI:           lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8},
 		ServiceProfileID: ts.serviceProfile.ID,
@@ -66,14 +66,14 @@ func (ts *GetNextDeviceQueueItemTestSuite) TestGetNextDeviceQueueItem() {
 	now := time.Now()
 	timeSinceGPSEpochNow := gps.Time(now).TimeSinceGPSEpoch()
 	timeSinceGPSEpochFuture := gps.Time(now.Add(time.Second)).TimeSinceGPSEpoch()
-
+	
 	tests := []struct {
 		name                              string
 		maxPayloadSize                    int
 		deviceSession                     storage.DeviceSession
 		deviceQueueItems                  []storage.DeviceQueueItem
 		reEncryptDeviceQueueItemsResponse as.ReEncryptDeviceQueueItemsResponse
-
+		
 		expectedDeviceQueueItem                  *storage.DeviceQueueItem
 		expectedMoreDeviceQueueItems             bool
 		expectedHandleDownlinkACKRequest         *as.HandleDownlinkACKRequest
@@ -357,20 +357,20 @@ func (ts *GetNextDeviceQueueItemTestSuite) TestGetNextDeviceQueueItem() {
 			expectedMoreDeviceQueueItems: false,
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.name, func(t *testing.T) {
 			assert := require.New(t)
-
+			
 			// set mock
 			ts.asClient.ReEncryptDeviceQueueItemsResponse = tst.reEncryptDeviceQueueItemsResponse
-
+			
 			// Populate the device-queue
 			assert.NoError(storage.FlushDeviceQueueForDevEUI(context.Background(), storage.DB(), ts.device.DevEUI))
 			for _, item := range tst.deviceQueueItems {
 				assert.NoError(storage.CreateDeviceQueueItem(context.Background(), storage.DB(), &item, ts.deviceProfile, tst.deviceSession))
 			}
-
+			
 			// setup context
 			ctx := dataContext{
 				ctx:           context.Background(),
@@ -386,9 +386,9 @@ func (ts *GetNextDeviceQueueItemTestSuite) TestGetNextDeviceQueueItem() {
 					},
 				},
 			}
-
+			
 			assert.NoError(getNextDeviceQueueItem(&ctx))
-
+			
 			if tst.expectedDeviceQueueItem == nil {
 				assert.Nil(ctx.DeviceQueueItem)
 			} else {
@@ -396,22 +396,22 @@ func (ts *GetNextDeviceQueueItemTestSuite) TestGetNextDeviceQueueItem() {
 				assert.Equal(tst.expectedDeviceQueueItem.FCnt, ctx.DeviceQueueItem.FCnt)
 				assert.Equal(tst.expectedDeviceQueueItem.FPort, ctx.DeviceQueueItem.FPort)
 				assert.Equal(tst.expectedDeviceQueueItem.FRMPayload, ctx.DeviceQueueItem.FRMPayload)
-
+				
 				if tst.expectedDeviceQueueItem.EmitAtTimeSinceGPSEpoch != nil {
 					assert.NotNil(ctx.DeviceQueueItem.EmitAtTimeSinceGPSEpoch)
 					assert.Greater(int64(*tst.expectedDeviceQueueItem.EmitAtTimeSinceGPSEpoch), int64(timeSinceGPSEpochNow))
 				} else {
 					assert.Nil(ctx.DeviceQueueItem.EmitAtTimeSinceGPSEpoch)
 				}
-
+				
 				assert.Equal(tst.expectedMoreDeviceQueueItems, ctx.MoreDeviceQueueItems)
 			}
-
+			
 			if tst.expectedHandleDownlinkACKRequest != nil {
 				req := <-ts.asClient.HandleDownlinkACKChan
 				assert.Equal(tst.expectedHandleDownlinkACKRequest, &req)
 			}
-
+			
 			if tst.expectedReEncryptDeviceQueueItemsRequest != nil {
 				req := <-ts.asClient.ReEncryptDeviceQueueItemsChan
 				assert.Equal(tst.expectedReEncryptDeviceQueueItemsRequest, &req)
@@ -1029,22 +1029,22 @@ func (ts *SetMACCommandsSetTestSuite) TestSetMACCommandsSet() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			assert := require.New(t)
 			conf := test.GetConfig()
 			assert.NoError(Setup(conf))
 			assert.NoError(band.Setup(conf))
-
+			
 			storage.RedisClient().FlushAll(context.Background())
-
+			
 			if tst.BeforeFunc != nil {
 				assert.NoError(tst.BeforeFunc())
 			}
-
+			
 			tst.DataContext.ctx = context.Background()
-
+			
 			assert.NoError(setMACCommandsSet(&tst.DataContext))
 			assert.Equal(tst.ExpectedMACCommands, tst.DataContext.MACCommands)
 		})
@@ -1100,11 +1100,11 @@ func TestFilterIncompatibleMACCommands(t *testing.T) {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		t.Run(tst.Name, func(t *testing.T) {
 			assert := require.New(t)
-
+			
 			out := filterIncompatibleMACCommands(tst.MACCommands)
 			assert.Equal(tst.Expected, out)
 		})
@@ -1114,15 +1114,15 @@ func TestFilterIncompatibleMACCommands(t *testing.T) {
 func TestSetTXParameters(t *testing.T) {
 	tests := []struct {
 		Name string
-
+		
 		Band                   loraband.Name
 		UplinkDwellTime400ms   bool
 		DownlinkDwellTime400ms bool
 		UplinkMaxEIRP          float32
-
+		
 		DeviceProfile storage.DeviceProfile
 		DeviceSession storage.DeviceSession
-
+		
 		ExpectedMACCommands []storage.MACCommandBlock
 	}{
 		{
@@ -1231,25 +1231,25 @@ func TestSetTXParameters(t *testing.T) {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		t.Run(tst.Name, func(t *testing.T) {
 			assert := require.New(t)
-
+			
 			var c config.Config
 			c.NetworkServer.Band.Name = tst.Band
 			c.NetworkServer.Band.UplinkDwellTime400ms = tst.UplinkDwellTime400ms
 			c.NetworkServer.Band.DownlinkDwellTime400ms = tst.DownlinkDwellTime400ms
 			c.NetworkServer.Band.UplinkMaxEIRP = tst.UplinkMaxEIRP
-
+			
 			assert.NoError(band.Setup(c))
 			assert.NoError(Setup(c))
-
+			
 			ctx := dataContext{
 				DeviceSession: tst.DeviceSession,
 				DeviceProfile: tst.DeviceProfile,
 			}
-
+			
 			assert.NoError(setTXParameters(&ctx))
 			assert.Equal(tst.ExpectedMACCommands, ctx.MACCommands)
 		})
@@ -1260,7 +1260,7 @@ func TestPreferRX2DR(t *testing.T) {
 	assert := require.New(t)
 	conf := test.GetConfig()
 	assert.NoError(Setup(conf))
-
+	
 	tests := []struct {
 		Name               string
 		DeviceSession      storage.DeviceSession
@@ -1298,21 +1298,21 @@ func TestPreferRX2DR(t *testing.T) {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		t.Run(tst.Name, func(t *testing.T) {
 			assert := require.New(t)
-
+			
 			rx2PreferOnRX1DRLt = tst.RX2PreferOnRX1DRLt
-
+			
 			ctx := dataContext{
 				DeviceSession: tst.DeviceSession,
 				RXPacket:      &models.RXPacket{},
 			}
-
+			
 			prefered, err := preferRX2DR(&ctx)
 			assert.NoError(err)
-
+			
 			assert.Equal(tst.RX2Prefered, prefered)
 		})
 	}
@@ -1323,7 +1323,7 @@ func TestPreferRX2LinkBudget(t *testing.T) {
 	conf := test.GetConfig()
 	conf.NetworkServer.NetworkSettings.RX2PreferOnLinkBudget = true
 	assert.NoError(Setup(conf))
-
+	
 	tests := []struct {
 		Name                  string
 		RX2PreferOnLinkBudget bool
@@ -1362,13 +1362,13 @@ func TestPreferRX2LinkBudget(t *testing.T) {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		t.Run(tst.Name, func(t *testing.T) {
 			assert := require.New(t)
-
+			
 			downlinkTXPower = tst.DownlinkTXPower
-
+			
 			ctx := dataContext{
 				DeviceSession: tst.DeviceSession,
 				RXPacket: &models.RXPacket{
@@ -1377,10 +1377,10 @@ func TestPreferRX2LinkBudget(t *testing.T) {
 					},
 				},
 			}
-
+			
 			prefered, err := preferRX2LinkBudget(&ctx)
 			assert.NoError(err)
-
+			
 			assert.Equal(tst.RX2Prefered, prefered)
 		})
 	}
@@ -1390,7 +1390,7 @@ func TestSetDataTXInfo(t *testing.T) {
 	assert := require.New(t)
 	conf := test.GetConfig()
 	assert.NoError(Setup(conf))
-
+	
 	tests := []struct {
 		Name                   string
 		RXWindow               int
@@ -1694,19 +1694,19 @@ func TestSetDataTXInfo(t *testing.T) {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		t.Run(tst.Name, func(t *testing.T) {
 			assert := require.New(t)
-
+			
 			rx2PreferOnRX1DRLt = tst.RX2PreferOnRX1DRLt
 			rx2PreferOnLinkBudget = tst.RX2PreferOnLinkBudget
 			downlinkTXPower = tst.DownlinkTXPower
-
+			
 			rxWindow = tst.RXWindow
 			rx2Frequency = tst.DeviceSession.RX2Frequency
 			rx2DR = int(tst.DeviceSession.RX2DR)
-
+			
 			ctx := dataContext{
 				DeviceSession:       tst.DeviceSession,
 				DeviceGatewayRXInfo: []storage.DeviceGatewayRXInfo{{}},
@@ -1716,14 +1716,14 @@ func TestSetDataTXInfo(t *testing.T) {
 					},
 				},
 			}
-
+			
 			assert.NoError(setDataTXInfo(&ctx))
-
+			
 			var txInfo []*gw.DownlinkTXInfo
 			for i := range ctx.DownlinkFrameItems {
 				txInfo = append(txInfo, ctx.DownlinkFrameItems[i].DownlinkFrameItem.TxInfo)
 			}
-
+			
 			assert.EqualValues(tst.ExpectedDownlinkTXInfo, txInfo)
 		})
 	}
@@ -1904,21 +1904,21 @@ func TestSetPHYPayloads(t *testing.T) {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		t.Run(tst.name, func(t *testing.T) {
 			assert := require.New(t)
-
+			
 			ctx := dataContext{
 				DownlinkFrameItems: tst.downlinkFrameItems,
 				DeviceSession:      tst.deviceSession,
 				DeviceQueueItem:    tst.deviceQueueItem,
 				MACCommands:        tst.macCommandBlocks,
 			}
-
+			
 			assert.NoError(setPHYPayloads(&ctx))
 			assert.Equal(len(tst.expectedDownlinkFrameItems), len(ctx.DownlinkFrame.Items))
-
+			
 			for i := range tst.expectedDownlinkFrameItems {
 				assert.Equal(tst.expectedDownlinkFrameItems[i], ctx.DownlinkFrame.Items[i])
 			}

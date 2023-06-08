@@ -5,12 +5,12 @@ import (
 	"errors"
 	"testing"
 	"time"
-
+	
 	"github.com/gofrs/uuid"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/as"
 	"github.com/brocaar/chirpstack-api/go/v3/common"
 	"github.com/brocaar/chirpstack-api/go/v3/gw"
@@ -21,9 +21,9 @@ import (
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/test"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/uplink"
-	"github.com/brocaar/lorawan"
-	"github.com/brocaar/lorawan/backend"
-	loraband "github.com/brocaar/lorawan/band"
+	"github.com/risinghf/lorawan"
+	"github.com/risinghf/lorawan/backend"
+	loraband "github.com/risinghf/lorawan/band"
 )
 
 type OTAATestSuite struct {
@@ -32,9 +32,9 @@ type OTAATestSuite struct {
 
 func (ts *OTAATestSuite) SetupSuite() {
 	ts.IntegrationTestSuite.SetupSuite()
-
+	
 	ts.JoinAcceptKey = lorawan.AES128Key{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
-
+	
 	ts.CreateDeviceProfile(storage.DeviceProfile{
 		MACVersion:   "1.0.2",
 		RXDelay1:     3,
@@ -42,13 +42,13 @@ func (ts *OTAATestSuite) SetupSuite() {
 		RXDataRate2:  5,
 		SupportsJoin: true,
 	})
-
+	
 	ts.CreateDevice(storage.Device{
 		DevEUI:            lorawan.EUI64{2, 2, 3, 4, 5, 6, 7, 8},
 		ReferenceAltitude: 5.6,
 		Mode:              storage.DeviceModeB,
 	})
-
+	
 	ts.CreateGateway(storage.Gateway{
 		GatewayID: lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8},
 	})
@@ -56,23 +56,23 @@ func (ts *OTAATestSuite) SetupSuite() {
 
 func (ts *OTAATestSuite) TestGatewayFiltering() {
 	assert := require.New(ts.T())
-
+	
 	conf := test.GetConfig()
-
+	
 	ts.DeviceProfile.MACVersion = "1.0.2"
 	assert.NoError(storage.UpdateDeviceProfile(context.Background(), storage.DB(), ts.DeviceProfile))
-
+	
 	rxInfo := gw.UplinkRXInfo{
 		GatewayId: ts.Gateway.GatewayID[:],
 		Context:   []byte{1, 2, 3, 4},
 		Location:  &common.Location{},
 	}
-
+	
 	txInfo := gw.UplinkTXInfo{
 		Frequency: 868100000,
 	}
 	assert.NoError(helpers.SetUplinkTXInfoDataRate(&txInfo, 0, band.Band()))
-
+	
 	jrPayload := lorawan.PHYPayload{
 		MHDR: lorawan.MHDR{
 			MType: lorawan.JoinRequest,
@@ -85,7 +85,7 @@ func (ts *OTAATestSuite) TestGatewayFiltering() {
 		},
 	}
 	assert.NoError(jrPayload.SetUplinkJoinMIC(ts.JoinAcceptKey))
-
+	
 	jaPayload := lorawan.JoinAcceptPayload{
 		JoinNonce: 197121,
 		HomeNetID: conf.NetworkServer.NetID,
@@ -120,7 +120,7 @@ func (ts *OTAATestSuite) TestGatewayFiltering() {
 	jaBytes, err := jaPHY.MarshalBinary()
 	assert.NoError(err)
 	assert.NoError(jaPHY.DecryptJoinAcceptPayload(ts.JoinAcceptKey))
-
+	
 	tests := []OTAATest{
 		{
 			Name:       "public gateway",
@@ -223,7 +223,7 @@ func (ts *OTAATestSuite) TestGatewayFiltering() {
 				if err := storage.CreateServiceProfile(context.Background(), storage.DB(), &sp); err != nil {
 					return err
 				}
-
+				
 				ts.Gateway.ServiceProfileID = &sp.ID
 				return storage.UpdateGateway(context.Background(), storage.DB(), ts.Gateway)
 			},
@@ -253,7 +253,7 @@ func (ts *OTAATestSuite) TestGatewayFiltering() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertOTAATest(t, tst)
@@ -263,23 +263,23 @@ func (ts *OTAATestSuite) TestGatewayFiltering() {
 
 func (ts *OTAATestSuite) TestLW10() {
 	assert := require.New(ts.T())
-
+	
 	conf := test.GetConfig()
-
+	
 	ts.DeviceProfile.MACVersion = "1.0.2"
 	assert.NoError(storage.UpdateDeviceProfile(context.Background(), storage.DB(), ts.DeviceProfile))
-
+	
 	rxInfo := gw.UplinkRXInfo{
 		GatewayId: ts.Gateway.GatewayID[:],
 		Context:   []byte{1, 2, 3, 4},
 		Location:  &common.Location{},
 	}
-
+	
 	txInfo := gw.UplinkTXInfo{
 		Frequency: 868100000,
 	}
 	assert.NoError(helpers.SetUplinkTXInfoDataRate(&txInfo, 0, band.Band()))
-
+	
 	jrPayload := lorawan.PHYPayload{
 		MHDR: lorawan.MHDR{
 			MType: lorawan.JoinRequest,
@@ -294,7 +294,7 @@ func (ts *OTAATestSuite) TestLW10() {
 	assert.NoError(jrPayload.SetUplinkJoinMIC(ts.JoinAcceptKey))
 	jrBytes, err := jrPayload.MarshalBinary()
 	assert.NoError(err)
-
+	
 	jaPayload := lorawan.JoinAcceptPayload{
 		JoinNonce: 197121,
 		HomeNetID: conf.NetworkServer.NetID,
@@ -329,7 +329,7 @@ func (ts *OTAATestSuite) TestLW10() {
 	jaBytes, err := jaPHY.MarshalBinary()
 	assert.NoError(err)
 	assert.NoError(jaPHY.DecryptJoinAcceptPayload(ts.JoinAcceptKey))
-
+	
 	cFList := lorawan.CFList{
 		CFListType: lorawan.CFListChannel,
 		Payload: &lorawan.CFListChannelPayload{
@@ -342,7 +342,7 @@ func (ts *OTAATestSuite) TestLW10() {
 	}
 	cFListB, err := cFList.MarshalBinary()
 	assert.NoError(err)
-
+	
 	tests := []OTAATest{
 		{
 			Name:       "device already activated with dev-nonce",
@@ -397,7 +397,7 @@ func (ts *OTAATestSuite) TestLW10() {
 					FPort:      1,
 				},
 			},
-
+			
 			Assert: []Assertion{
 				AssertJSJoinReqPayload(backend.JoinReqPayload{
 					BasePayload: backend.BasePayload{
@@ -527,7 +527,7 @@ func (ts *OTAATestSuite) TestLW10() {
 					AESKey: []byte{16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1},
 				},
 			},
-
+			
 			Assert: []Assertion{
 				AssertJSJoinReqPayload(backend.JoinReqPayload{
 					BasePayload: backend.BasePayload{
@@ -656,7 +656,7 @@ func (ts *OTAATestSuite) TestLW10() {
 					FPort:      1,
 				},
 			},
-
+			
 			Assert: []Assertion{
 				AssertJSJoinReqPayload(backend.JoinReqPayload{
 					BasePayload: backend.BasePayload{
@@ -742,7 +742,7 @@ func (ts *OTAATestSuite) TestLW10() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertOTAATest(t, tst)
@@ -752,27 +752,27 @@ func (ts *OTAATestSuite) TestLW10() {
 
 func (ts *OTAATestSuite) TestLW11() {
 	assert := require.New(ts.T())
-
+	
 	conf := test.GetConfig()
-
+	
 	ts.DeviceProfile.SupportsClassB = false
 	ts.DeviceProfile.SupportsClassC = false
 	ts.DeviceProfile.MACVersion = "1.1.0"
 	assert.NoError(storage.UpdateDeviceProfile(context.Background(), storage.DB(), ts.DeviceProfile))
-
+	
 	ts.Device.IsDisabled = false
 	assert.NoError(storage.UpdateDevice(context.Background(), storage.DB(), ts.Device))
-
+	
 	rxInfo := gw.UplinkRXInfo{
 		GatewayId: ts.Gateway.GatewayID[:],
 		Context:   []byte{1, 2, 3, 4},
 	}
-
+	
 	txInfo := gw.UplinkTXInfo{
 		Frequency: 868100000,
 	}
 	assert.NoError(helpers.SetUplinkTXInfoDataRate(&txInfo, 0, band.Band()))
-
+	
 	jrPayload := lorawan.PHYPayload{
 		MHDR: lorawan.MHDR{
 			MType: lorawan.JoinRequest,
@@ -787,7 +787,7 @@ func (ts *OTAATestSuite) TestLW11() {
 	assert.NoError(jrPayload.SetUplinkJoinMIC(ts.JoinAcceptKey))
 	jrBytes, err := jrPayload.MarshalBinary()
 	assert.NoError(err)
-
+	
 	jaPayload := lorawan.JoinAcceptPayload{
 		JoinNonce: 197121,
 		HomeNetID: conf.NetworkServer.NetID,
@@ -822,7 +822,7 @@ func (ts *OTAATestSuite) TestLW11() {
 	jaBytes, err := jaPHY.MarshalBinary()
 	assert.NoError(err)
 	assert.NoError(jaPHY.DecryptJoinAcceptPayload(ts.JoinAcceptKey))
-
+	
 	tests := []OTAATest{
 		{
 			Name:       "join-request accepted (rx1 + rx2)",
@@ -857,7 +857,7 @@ func (ts *OTAATestSuite) TestLW11() {
 					FPort:      1,
 				},
 			},
-
+			
 			Assert: []Assertion{
 				AssertJSJoinReqPayload(backend.JoinReqPayload{
 					BasePayload: backend.BasePayload{
@@ -1008,7 +1008,7 @@ func (ts *OTAATestSuite) TestLW11() {
 					FPort:      1,
 				},
 			},
-
+			
 			Assert: []Assertion{
 				AssertJSJoinReqPayload(backend.JoinReqPayload{
 					BasePayload: backend.BasePayload{
@@ -1164,7 +1164,7 @@ func (ts *OTAATestSuite) TestLW11() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertOTAATest(t, tst)

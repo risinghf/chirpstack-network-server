@@ -3,16 +3,16 @@ package channels
 import (
 	"fmt"
 	"testing"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/test"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestHandleChannelReconfigure(t *testing.T) {
 	_ = test.GetConfig()
-
+	
 	Convey("Given a set of tests", t, func() {
 		tests := []struct {
 			Name          string
@@ -33,7 +33,7 @@ func TestHandleChannelReconfigure(t *testing.T) {
 					TXPowerIndex:          1,
 					NbTrans:               2,
 					EnabledUplinkChannels: []int{0, 1}, // this is not realistic but good enough for testing
-					DR: 3,
+					DR:                    3,
 				},
 				Expected: []storage.MACCommandBlock{
 					{
@@ -55,7 +55,7 @@ func TestHandleChannelReconfigure(t *testing.T) {
 				},
 			},
 		}
-
+		
 		for i, test := range tests {
 			Convey(fmt.Sprintf("test: %s [%d]", test.Name, i), func() {
 				blocks, err := HandleChannelReconfigure(test.DeviceSession)

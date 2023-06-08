@@ -1,7 +1,7 @@
 package test
 
 import (
-	"github.com/brocaar/lorawan/backend"
+	"github.com/risinghf/lorawan/backend"
 	context "golang.org/x/net/context"
 )
 
@@ -11,13 +11,13 @@ type BackendClient struct {
 	ReceiverID          string
 	Async               bool
 	RandomTransactionID uint32
-
+	
 	PRStartReqChan  chan backend.PRStartReqPayload
 	PRStopReqChan   chan backend.PRStopReqPayload
 	XmitDataReqChan chan backend.XmitDataReqPayload
 	ProfileReqChan  chan backend.ProfileReqPayload
 	HomeNSReqChan   chan backend.HomeNSReqPayload
-
+	
 	PRStartAns  backend.PRStartAnsPayload
 	PRStopAns   backend.PRStopAnsPayload
 	XmitDataAns backend.XmitDataAnsPayload
@@ -31,7 +31,7 @@ func NewBackendClient() *BackendClient {
 		PRStartReqChan:  make(chan backend.PRStartReqPayload, 10),
 		PRStopReqChan:   make(chan backend.PRStopReqPayload, 10),
 		XmitDataReqChan: make(chan backend.XmitDataReqPayload, 10),
-
+		
 		ProfileReqChan: make(chan backend.ProfileReqPayload, 10),
 		HomeNSReqChan:  make(chan backend.HomeNSReqPayload, 10),
 	}

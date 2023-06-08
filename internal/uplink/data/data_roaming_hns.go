@@ -2,13 +2,13 @@ package data
 
 import (
 	"context"
-
+	
 	"github.com/pkg/errors"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/models"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/roaming"
-	"github.com/brocaar/lorawan"
-	"github.com/brocaar/lorawan/backend"
+	"github.com/risinghf/lorawan"
+	"github.com/risinghf/lorawan/backend"
 )
 
 // HandleRoamingHNS handles an uplink as a hNS.
@@ -18,7 +18,7 @@ func HandleRoamingHNS(ctx context.Context, phyPayload []byte, basePL backend.Bas
 	if err := phy.UnmarshalBinary(phyPayload); err != nil {
 		return errors.Wrap(err, "unmarshal phypayload error")
 	}
-
+	
 	// convert ULMetaData to UplinkRXInfo and UplinkTXInfo
 	txInfo, err := roaming.ULMetaDataToTXInfo(ulMetaData)
 	if err != nil {
@@ -28,7 +28,7 @@ func HandleRoamingHNS(ctx context.Context, phyPayload []byte, basePL backend.Bas
 	if err != nil {
 		return errors.Wrap(err, "ul meta-data to rxinfo error")
 	}
-
+	
 	// Construct RXPacket
 	rxPacket := models.RXPacket{
 		PHYPayload: phy,
@@ -42,11 +42,11 @@ func HandleRoamingHNS(ctx context.Context, phyPayload []byte, basePL backend.Bas
 	if ulMetaData.DataRate != nil {
 		rxPacket.DR = *ulMetaData.DataRate
 	}
-
+	
 	// Start the uplink data flow
 	if err := Handle(ctx, rxPacket); err != nil {
 		return errors.Wrap(err, "handle uplink error")
 	}
-
+	
 	return nil
 }

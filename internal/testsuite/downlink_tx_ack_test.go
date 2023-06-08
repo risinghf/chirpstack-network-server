@@ -4,12 +4,12 @@ import (
 	"context"
 	"testing"
 	"time"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/as"
 	"github.com/brocaar/chirpstack-api/go/v3/gw"
 	"github.com/brocaar/chirpstack-api/go/v3/nc"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -33,7 +33,7 @@ func (ts *DownlinkTXAckTestSuite) getPHYPayload(mType lorawan.MType, fPort *uint
 			FRMPayload: frmPayload,
 		},
 	}
-
+	
 	b, _ := phy.MarshalBinary()
 	return b
 }
@@ -42,11 +42,11 @@ func (ts *DownlinkTXAckTestSuite) TestDownlinkTXAck() {
 	ts.CreateMulticastGroup(storage.MulticastGroup{
 		GroupType: storage.MulticastGroupC,
 	})
-
+	
 	ts.CreateDevice(storage.Device{
 		DevEUI: lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8},
 	})
-
+	
 	ts.CreateMulticastGroup(storage.MulticastGroup{
 		MCAddr:    lorawan.DevAddr{4, 3, 2, 1},
 		FCnt:      30,
@@ -54,11 +54,11 @@ func (ts *DownlinkTXAckTestSuite) TestDownlinkTXAck() {
 		DR:        0,
 		Frequency: 868100000,
 	})
-
+	
 	ts.CreateGateway(storage.Gateway{
 		GatewayID: lorawan.EUI64{1, 1, 1, 1, 1, 1, 1, 1},
 	})
-
+	
 	ds10 := storage.DeviceSession{
 		DevAddr:          lorawan.DevAddr{1, 2, 3, 4},
 		DevEUI:           ts.Device.DevEUI,
@@ -68,7 +68,7 @@ func (ts *DownlinkTXAckTestSuite) TestDownlinkTXAck() {
 		MACVersion:       "1.0.3",
 		NFCntDown:        10,
 	}
-
+	
 	ds11 := storage.DeviceSession{
 		DevAddr:          lorawan.DevAddr{1, 2, 3, 4},
 		DevEUI:           lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8},
@@ -79,10 +79,10 @@ func (ts *DownlinkTXAckTestSuite) TestDownlinkTXAck() {
 		NFCntDown:        10,
 		AFCntDown:        20,
 	}
-
+	
 	fPort2 := uint8(2)
 	classBTimeout := time.Now().Add(10 * time.Second)
-
+	
 	ts.T().Run("LW10 - Class-A", func(t *testing.T) {
 		tests := []DownlinkTXAckTest{
 			{
@@ -377,14 +377,14 @@ func (ts *DownlinkTXAckTestSuite) TestDownlinkTXAck() {
 				},
 			},
 		}
-
+		
 		for _, tst := range tests {
 			t.Run(tst.Name, func(t *testing.T) {
 				ts.AssertDownlinkTXAckTest(t, tst)
 			})
 		}
 	})
-
+	
 	ts.T().Run("LW11 - Class-A", func(t *testing.T) {
 		tests := []DownlinkTXAckTest{
 			{
@@ -491,14 +491,14 @@ func (ts *DownlinkTXAckTestSuite) TestDownlinkTXAck() {
 				},
 			},
 		}
-
+		
 		for _, tst := range tests {
 			t.Run(tst.Name, func(t *testing.T) {
 				ts.AssertDownlinkTXAckTest(t, tst)
 			})
 		}
 	})
-
+	
 	ts.T().Run("LW10 - Class-B", func(t *testing.T) {
 		tests := []DownlinkTXAckTest{
 			{
@@ -706,20 +706,20 @@ func (ts *DownlinkTXAckTestSuite) TestDownlinkTXAck() {
 				},
 			},
 		}
-
+		
 		for _, tst := range tests {
 			t.Run(tst.Name, func(t *testing.T) {
 				ts.AssertDownlinkTXAckTest(t, tst)
 			})
 		}
 	})
-
+	
 	ts.T().Run("LW10 - Class-C", func(t *testing.T) {
 		assert := require.New(t)
 		ts.DeviceProfile.SupportsClassC = true
 		ts.DeviceProfile.ClassCTimeout = 10
 		assert.NoError(storage.UpdateDeviceProfile(context.Background(), storage.DB(), ts.DeviceProfile))
-
+		
 		tests := []DownlinkTXAckTest{
 			{
 				Name:          "ack for unconfirmed app frame",
@@ -934,14 +934,14 @@ func (ts *DownlinkTXAckTestSuite) TestDownlinkTXAck() {
 				},
 			},
 		}
-
+		
 		for _, tst := range tests {
 			t.Run(tst.Name, func(t *testing.T) {
 				ts.AssertDownlinkTXAckTest(t, tst)
 			})
 		}
 	})
-
+	
 	ts.T().Run("LW10 - Multicast", func(t *testing.T) {
 		tests := []DownlinkTXAckTest{
 			{
@@ -1042,7 +1042,7 @@ func (ts *DownlinkTXAckTestSuite) TestDownlinkTXAck() {
 				},
 			},
 		}
-
+		
 		for _, tst := range tests {
 			t.Run(tst.Name, func(t *testing.T) {
 				ts.AssertDownlinkTXAckTest(t, tst)

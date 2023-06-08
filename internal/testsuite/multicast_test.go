@@ -4,16 +4,16 @@ import (
 	"context"
 	"testing"
 	"time"
-
+	
 	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/common"
 	"github.com/brocaar/chirpstack-api/go/v3/gw"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/gps"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 type MulticastTestSuite struct {
@@ -22,11 +22,11 @@ type MulticastTestSuite struct {
 
 func (ts *MulticastTestSuite) SetupSuite() {
 	ts.IntegrationTestSuite.SetupSuite()
-
+	
 	ts.CreateGateway(storage.Gateway{
 		GatewayID: lorawan.EUI64{1, 1, 1, 1, 1, 1, 1, 1},
 	})
-
+	
 	ts.CreateMulticastGroup(storage.MulticastGroup{
 		GroupType:      storage.MulticastGroupB,
 		MCAddr:         lorawan.DevAddr{1, 2, 3, 4},
@@ -36,11 +36,11 @@ func (ts *MulticastTestSuite) SetupSuite() {
 		PingSlotPeriod: 32,
 		FCnt:           10,
 	})
-
+	
 	ts.CreateDevice(storage.Device{
 		DevEUI: lorawan.EUI64{2, 2, 2, 2, 2, 2, 2, 2},
 	})
-
+	
 	assert := require.New(ts.T())
 	assert.NoError(storage.SaveDeviceGatewayRXInfoSet(context.Background(), storage.DeviceGatewayRXInfoSet{
 		DevEUI: ts.Device.DevEUI,
@@ -53,7 +53,7 @@ func (ts *MulticastTestSuite) SetupSuite() {
 			},
 		},
 	}))
-
+	
 	assert.NoError(storage.AddDeviceToMulticastGroup(context.Background(), storage.DB(), ts.Device.DevEUI, ts.MulticastGroup.ID))
 }
 
@@ -61,7 +61,7 @@ func (ts *MulticastTestSuite) TestMulticast() {
 	now := time.Now().Round(time.Second).Add(-time.Second)
 	nowGPS := gps.Time(now).TimeSinceGPSEpoch()
 	fPort2 := uint8(2)
-
+	
 	tests := []MulticastTest{
 		{
 			Name:           "nothing in queue",
@@ -230,7 +230,7 @@ func (ts *MulticastTestSuite) TestMulticast() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertMulticastTest(t, tst)

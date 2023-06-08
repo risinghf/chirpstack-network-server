@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
-
+	
 	"github.com/go-redis/redis/v8"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/logging"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 const (
@@ -64,12 +64,12 @@ func (m *MACCommands) UnmarshalBinary(data []byte) error {
 		} else {
 			pLen = s
 		}
-
+		
 		// check if the remaining bytes are >= CID byte + payload size
 		if len(data[i:]) < pLen+1 {
 			return errors.New("not enough remaining bytes")
 		}
-
+		
 		var mc lorawan.MACCommand
 		if err := mc.UnmarshalBinary(false, data[i:i+1+pLen]); err != nil {
 			return err
@@ -83,40 +83,40 @@ func (m *MACCommands) UnmarshalBinary(data []byte) error {
 // FlushMACCommandQueue flushes the mac-command queue for the given DevEUI.
 func FlushMACCommandQueue(ctx context.Context, devEUI lorawan.EUI64) error {
 	key := GetRedisKey(macCommandQueueTempl, devEUI)
-
+	
 	err := RedisClient().Del(ctx, key).Err()
 	if err != nil {
 		return errors.Wrap(err, "flush mac-command queue error")
 	}
-
+	
 	return nil
 }
 
 // CreateMACCommandQueueItem creates a new mac-command queue item.
 func CreateMACCommandQueueItem(ctx context.Context, devEUI lorawan.EUI64, block MACCommandBlock) error {
 	key := GetRedisKey(macCommandQueueTempl, devEUI)
-
+	
 	var buf bytes.Buffer
 	err := gob.NewEncoder(&buf).Encode(block)
 	if err != nil {
 		return errors.Wrap(err, "gob encode error")
 	}
-
+	
 	pipe := RedisClient().TxPipeline()
 	pipe.RPush(ctx, key, buf.Bytes())
 	pipe.PExpire(ctx, key, deviceSessionTTL)
-
+	
 	_, err = pipe.Exec(ctx)
 	if err != nil {
 		return errors.Wrap(err, "create mac-command queue item error")
 	}
-
+	
 	log.WithFields(log.Fields{
 		"dev_eui": devEUI,
 		"cid":     block.CID,
 		"ctx_id":  ctx.Value(logging.ContextIDKey),
 	}).Info("mac-command queue item created")
-
+	
 	return nil
 }
 
@@ -125,50 +125,50 @@ func CreateMACCommandQueueItem(ctx context.Context, devEUI lorawan.EUI64, block 
 func GetMACCommandQueueItems(ctx context.Context, devEUI lorawan.EUI64) ([]MACCommandBlock, error) {
 	var out []MACCommandBlock
 	key := GetRedisKey(macCommandQueueTempl, devEUI)
-
+	
 	values, err := RedisClient().LRange(ctx, key, 0, -1).Result()
 	if err != nil {
 		return nil, errors.Wrap(err, "get mac-command queue items error")
 	}
-
+	
 	for _, value := range values {
 		var block MACCommandBlock
 		err = gob.NewDecoder(bytes.NewReader([]byte(value))).Decode(&block)
 		if err != nil {
 			return nil, errors.Wrap(err, "gob decode error")
 		}
-
+		
 		out = append(out, block)
 	}
-
+	
 	return out, nil
 }
 
 // DeleteMACCommandQueueItem deletes the given mac-command from the queue.
 func DeleteMACCommandQueueItem(ctx context.Context, devEUI lorawan.EUI64, block MACCommandBlock) error {
 	key := GetRedisKey(macCommandQueueTempl, devEUI)
-
+	
 	var buf bytes.Buffer
 	err := gob.NewEncoder(&buf).Encode(block)
 	if err != nil {
 		return errors.Wrap(err, "gob encode error")
 	}
-
+	
 	val, err := RedisClient().LRem(ctx, key, 0, buf.Bytes()).Result()
 	if err != nil {
 		return errors.Wrap(err, "delete mac-command queue item error")
 	}
-
+	
 	if val == 0 {
 		return ErrDoesNotExist
 	}
-
+	
 	log.WithFields(log.Fields{
 		"dev_eui": devEUI,
 		"cid":     block.CID,
 		"ctx_id":  ctx.Value(logging.ContextIDKey),
 	}).Info("mac-command deleted from queue")
-
+	
 	return nil
 }
 
@@ -177,25 +177,25 @@ func DeleteMACCommandQueueItem(ctx context.Context, devEUI lorawan.EUI64, block 
 // it will be overwritten.
 func SetPendingMACCommand(ctx context.Context, devEUI lorawan.EUI64, block MACCommandBlock) error {
 	key := GetRedisKey(macCommandPendingTempl, devEUI, block.CID)
-
+	
 	var buf bytes.Buffer
 	err := gob.NewEncoder(&buf).Encode(block)
 	if err != nil {
 		return errors.Wrap(err, "gob encode error")
 	}
-
+	
 	err = RedisClient().Set(ctx, key, buf.Bytes(), deviceSessionTTL).Err()
 	if err != nil {
 		return errors.Wrap(err, "set mac-command pending error")
 	}
-
+	
 	log.WithFields(log.Fields{
 		"dev_eui":  devEUI,
 		"cid":      block.CID,
 		"commands": len(block.MACCommands),
 		"ctx_id":   ctx.Value(logging.ContextIDKey),
 	}).Info("pending mac-command block set")
-
+	
 	return nil
 }
 
@@ -204,7 +204,7 @@ func SetPendingMACCommand(ctx context.Context, devEUI lorawan.EUI64, block MACCo
 func GetPendingMACCommand(ctx context.Context, devEUI lorawan.EUI64, cid lorawan.CID) (*MACCommandBlock, error) {
 	var block MACCommandBlock
 	key := GetRedisKey(macCommandPendingTempl, devEUI, cid)
-
+	
 	val, err := RedisClient().Get(ctx, key).Bytes()
 	if err != nil {
 		if err == redis.Nil {
@@ -212,19 +212,19 @@ func GetPendingMACCommand(ctx context.Context, devEUI lorawan.EUI64, cid lorawan
 		}
 		return nil, errors.Wrap(err, "get pending mac-command error")
 	}
-
+	
 	err = gob.NewDecoder(bytes.NewReader(val)).Decode(&block)
 	if err != nil {
 		return nil, errors.Wrap(err, "gob decode error")
 	}
-
+	
 	return &block, nil
 }
 
 // DeletePendingMACCommand removes the pending mac-command for the given CID.
 func DeletePendingMACCommand(ctx context.Context, devEUI lorawan.EUI64, cid lorawan.CID) error {
 	key := GetRedisKey(macCommandPendingTempl, devEUI, cid)
-
+	
 	val, err := RedisClient().Del(ctx, key).Result()
 	if err != nil {
 		return errors.Wrap(err, "delete pending mac-command error")
@@ -232,12 +232,12 @@ func DeletePendingMACCommand(ctx context.Context, devEUI lorawan.EUI64, cid lora
 	if val == 0 {
 		return ErrDoesNotExist
 	}
-
+	
 	log.WithFields(log.Fields{
 		"dev_eui": devEUI,
 		"cid":     cid,
 		"ctx_id":  ctx.Value(logging.ContextIDKey),
 	}).Info("pending mac-command deleted")
-
+	
 	return nil
 }

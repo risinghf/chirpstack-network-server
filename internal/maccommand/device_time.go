@@ -3,16 +3,16 @@ package maccommand
 import (
 	"context"
 	"time"
-
+	
 	"github.com/golang/protobuf/ptypes"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/gps"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/logging"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/models"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 // handleDeviceTimeReq returns the timestamp after the RX was completed.
@@ -28,11 +28,11 @@ func handleDeviceTimeReq(ctx context.Context, ds *storage.DeviceSession, rxPacke
 	if len(rxPacket.RXInfoSet) == 0 {
 		return nil, errors.New("rx info-set contains zero items")
 	}
-
+	
 	var err error
 	var timeSinceGPSEpoch time.Duration
 	var timeField time.Time
-
+	
 	for _, rxInfo := range rxPacket.RXInfoSet {
 		if rxInfo.TimeSinceGpsEpoch != nil {
 			timeSinceGPSEpoch, err = ptypes.Duration(rxInfo.TimeSinceGpsEpoch)
@@ -54,23 +54,23 @@ func handleDeviceTimeReq(ctx context.Context, ds *storage.DeviceSession, rxPacke
 			}
 		}
 	}
-
+	
 	log.WithFields(log.Fields{
 		"dev_eui": ds.DevEUI,
 		"ctx_id":  ctx.Value(logging.ContextIDKey),
 	}).Info("device_time_req received")
-
+	
 	// fallback on time field when time since GPS epoch is not available
 	if timeSinceGPSEpoch == 0 {
-
+		
 		// fallback on current server time when time field is not available
 		if timeField.IsZero() {
 			timeField = time.Now()
 		}
-
+		
 		timeSinceGPSEpoch = gps.Time(timeField).TimeSinceGPSEpoch()
 	}
-
+	
 	return []storage.MACCommandBlock{
 		{
 			CID: lorawan.DeviceTimeAns,

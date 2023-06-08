@@ -5,11 +5,11 @@ import (
 	"sync"
 	"testing"
 	"time"
-
+	
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/common"
 	"github.com/brocaar/chirpstack-api/go/v3/gw"
 	"github.com/brocaar/chirpstack-api/go/v3/nc"
@@ -19,7 +19,7 @@ import (
 	"github.com/brocaar/chirpstack-network-server/v3/internal/models"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/test"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 type CollectTestSuite struct {
@@ -30,7 +30,7 @@ func (ts *CollectTestSuite) SetupSuite() {
 	assert := require.New(ts.T())
 	conf := test.GetConfig()
 	conf.NetworkServer.DeduplicationDelay = time.Millisecond * 500
-
+	
 	assert.NoError(storage.Setup(conf))
 	assert.NoError(Setup(conf))
 }
@@ -39,7 +39,7 @@ func (ts *CollectTestSuite) TestHandleRejectedUplinkFrameSet() {
 	testController := test.NewNetworkControllerClient()
 	assert := require.New(ts.T())
 	controller.SetClient(testController)
-
+	
 	phy := lorawan.PHYPayload{
 		MHDR: lorawan.MHDR{
 			MType: lorawan.UnconfirmedDataUp,
@@ -50,7 +50,7 @@ func (ts *CollectTestSuite) TestHandleRejectedUplinkFrameSet() {
 	}
 	b, err := phy.MarshalBinary()
 	assert.NoError(err)
-
+	
 	uplinkFrame := gw.UplinkFrame{
 		PhyPayload: b,
 		TxInfo: &gw.UplinkTXInfo{
@@ -69,9 +69,9 @@ func (ts *CollectTestSuite) TestHandleRejectedUplinkFrameSet() {
 			Location:  &common.Location{},
 		},
 	}
-
+	
 	assert.Equal(storage.ErrDoesNotExist, errors.Cause(collectUplinkFrames(context.Background(), uplinkFrame)))
-
+	
 	assert.Equal(nc.HandleRejectedUplinkFrameSetRequest{
 		FrameSet: &gw.UplinkFrameSet{
 			PhyPayload: uplinkFrame.PhyPayload,
@@ -135,27 +135,27 @@ func (ts *CollectTestSuite) TestDeduplication() {
 			2,
 		},
 	}
-
+	
 	for _, tst := range testTable {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			assert := require.New(t)
 			storage.RedisClient().FlushAll(context.Background())
-
+			
 			var received int
 			var called int
-
+			
 			cb := func(packet models.RXPacket) error {
 				called = called + 1
 				received = len(packet.RXInfoSet)
 				return nil
 			}
-
+			
 			var wg sync.WaitGroup
 			for i := range tst.Gateways {
 				g := tst.Gateways[i]
 				phyB, err := tst.PHYPayload.MarshalBinary()
 				assert.NoError(err)
-
+				
 				wg.Add(1)
 				packet := gw.UplinkFrame{
 					RxInfo: &gw.UplinkRXInfo{
@@ -165,14 +165,14 @@ func (ts *CollectTestSuite) TestDeduplication() {
 					PhyPayload: phyB,
 				}
 				assert.NoError(helpers.SetUplinkTXInfoDataRate(packet.TxInfo, 0, band.Band()))
-
+				
 				go func(packet gw.UplinkFrame) {
 					assert.NoError(collectAndCallOnce(packet, cb))
 					wg.Done()
 				}(packet)
 			}
 			wg.Wait()
-
+			
 			assert.Equal(1, called)
 			assert.Equal(tst.Count, received)
 		})

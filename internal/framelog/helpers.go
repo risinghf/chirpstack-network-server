@@ -2,11 +2,11 @@ package framelog
 
 import (
 	"github.com/pkg/errors"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/common"
 	"github.com/brocaar/chirpstack-api/go/v3/ns"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/models"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 // CreateUplinkFrameLog creates a UplinkFrameLog.
@@ -15,7 +15,7 @@ func CreateUplinkFrameLog(rxPacket models.RXPacket) (ns.UplinkFrameLog, error) {
 	if err != nil {
 		return ns.UplinkFrameLog{}, errors.Wrap(err, "marshal phypayload error")
 	}
-
+	
 	var protoMType common.MType
 	switch rxPacket.PHYPayload.MHDR.MType {
 	case lorawan.JoinRequest:
@@ -29,7 +29,7 @@ func CreateUplinkFrameLog(rxPacket models.RXPacket) (ns.UplinkFrameLog, error) {
 	case lorawan.Proprietary:
 		protoMType = common.MType_Proprietary
 	}
-
+	
 	return ns.UplinkFrameLog{
 		PhyPayload: b,
 		TxInfo:     rxPacket.TXInfo,

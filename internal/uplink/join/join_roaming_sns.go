@@ -2,11 +2,11 @@ package join
 
 import (
 	"context"
-
+	
 	"github.com/pkg/errors"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/models"
-	"github.com/brocaar/lorawan/backend"
+	"github.com/risinghf/lorawan/backend"
 )
 
 // HandleStartPR handles starting a passive-roaming OTAA activation as the
@@ -17,7 +17,7 @@ func HandleStartPRHNS(ctx context.Context, prStartPL backend.PRStartReqPayload, 
 		RXPacket:          rxPacket,
 		PRStartReqPayload: &prStartPL,
 	}
-
+	
 	for _, f := range []func() error{
 		jctx.setContextFromJoinRequestPHYPayload,
 		jctx.logJoinRequestFramesCollected,
@@ -39,10 +39,10 @@ func HandleStartPRHNS(ctx context.Context, prStartPL backend.PRStartReqPayload, 
 			return backend.PRStartAnsPayload{}, err
 		}
 	}
-
+	
 	if jctx.PRStartAnsPayload != nil {
 		return *jctx.PRStartAnsPayload, nil
 	}
-
+	
 	return backend.PRStartAnsPayload{}, errors.New("PRStartAnsPayload is not set")
 }

@@ -3,13 +3,13 @@ package maccommand
 import (
 	"context"
 	"testing"
-
+	
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/models"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 type PingSlotInfoTestSuite struct {
@@ -19,13 +19,13 @@ type PingSlotInfoTestSuite struct {
 func (ts *PingSlotInfoTestSuite) TestPingSlotInfoReq() {
 	assert := require.New(ts.T())
 	ctx := context.Background()
-
+	
 	ds := storage.DeviceSession{
 		DevEUI:                [8]byte{1, 2, 3, 4, 5, 6, 7, 8},
 		EnabledUplinkChannels: []int{0, 1},
 	}
 	assert.NoError(storage.SaveDeviceSession(ctx, ds))
-
+	
 	block := storage.MACCommandBlock{
 		CID: lorawan.PingSlotInfoReq,
 		MACCommands: []lorawan.MACCommand{
@@ -37,12 +37,12 @@ func (ts *PingSlotInfoTestSuite) TestPingSlotInfoReq() {
 			},
 		},
 	}
-
+	
 	resp, err := Handle(ctx, &ds, storage.DeviceProfile{}, storage.ServiceProfile{}, nil, block, nil, models.RXPacket{})
 	assert.NoError(err)
-
+	
 	assert.Equal(16, ds.PingSlotNb)
-
+	
 	assert.Len(resp, 1)
 	assert.Equal(storage.MACCommandBlock{
 		CID: lorawan.PingSlotInfoAns,

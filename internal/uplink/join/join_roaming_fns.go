@@ -3,11 +3,11 @@ package join
 import (
 	"context"
 	"time"
-
+	
 	"github.com/gofrs/uuid"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/backend/joinserver"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/band"
 	dlroaming "github.com/brocaar/chirpstack-network-server/v3/internal/downlink/roaming"
@@ -16,8 +16,8 @@ import (
 	"github.com/brocaar/chirpstack-network-server/v3/internal/models"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/roaming"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
-	"github.com/brocaar/lorawan/backend"
+	"github.com/risinghf/lorawan"
+	"github.com/risinghf/lorawan/backend"
 )
 
 type startPRFNSContext struct {
@@ -36,7 +36,7 @@ func StartPRFNS(ctx context.Context, rxPacket models.RXPacket, jrPL *lorawan.Joi
 		rxPacket:           rxPacket,
 		joinRequestPayload: jrPL,
 	}
-
+	
 	for _, f := range []func() error{
 		cctx.filterRxInfoByPublicOnly,
 		cctx.getHomeNetID,
@@ -48,11 +48,11 @@ func StartPRFNS(ctx context.Context, rxPacket models.RXPacket, jrPL *lorawan.Joi
 			if err == ErrAbort {
 				return nil
 			}
-
+			
 			return err
 		}
 	}
-
+	
 	return nil
 }
 
@@ -67,7 +67,7 @@ func (ctx *startPRFNSContext) filterRxInfoByPublicOnly() error {
 		}
 		return err
 	}
-
+	
 	return nil
 }
 
@@ -76,7 +76,7 @@ func (ctx *startPRFNSContext) getHomeNetID() error {
 	if err != nil {
 		return errors.Wrap(err, "get js client for joineui error")
 	}
-
+	
 	nsReq := backend.HomeNSReqPayload{
 		DevEUI: ctx.joinRequestPayload.DevEUI,
 	}
@@ -84,16 +84,16 @@ func (ctx *startPRFNSContext) getHomeNetID() error {
 	if err != nil {
 		return errors.Wrap(err, "request home netid error")
 	}
-
+	
 	log.WithFields(log.Fields{
 		"ctx_id":   ctx.ctx.Value(logging.ContextIDKey),
 		"net_id":   nsAns.HNetID,
 		"join_eui": ctx.joinRequestPayload.JoinEUI,
 		"dev_eui":  ctx.joinRequestPayload.DevEUI,
 	}).Info("uplink/join: resolved joineui to netid")
-
+	
 	ctx.homeNetID = nsAns.HNetID
-
+	
 	return nil
 }
 
@@ -108,10 +108,10 @@ func (ctx *startPRFNSContext) getNSClient() error {
 			}).Warning("uplink/join: no roaming agreement for netid")
 			return ErrAbort
 		}
-
+		
 		return errors.Wrap(err, "get client for netid error")
 	}
-
+	
 	ctx.nsClient = client
 	return nil
 }
@@ -121,15 +121,15 @@ func (ctx *startPRFNSContext) startRoaming() error {
 	if err != nil {
 		return errors.Wrap(err, "marshal phypayload error")
 	}
-
+	
 	gwCnt := len(ctx.rxPacket.RXInfoSet)
 	gwInfo, err := roaming.RXInfoToGWInfo(ctx.rxPacket.RXInfoSet)
 	if err != nil {
 		return errors.Wrap(err, "rxinfo to gwinfo error")
 	}
-
+	
 	ulFreq := float64(ctx.rxPacket.TXInfo.Frequency) / 1000000
-
+	
 	prReq := backend.PRStartReqPayload{
 		PHYPayload: backend.HEXBytes(phyB),
 		ULMetaData: backend.ULMetaData{
@@ -142,20 +142,20 @@ func (ctx *startPRFNSContext) startRoaming() error {
 			GWInfo:   gwInfo,
 		},
 	}
-
+	
 	ctx.prStartAns, err = ctx.nsClient.PRStartReq(ctx.ctx, prReq)
 	if err != nil {
 		return errors.Wrap(err, "PRStartReq error")
 	}
-
+	
 	if ctx.prStartAns.DLMetaData == nil {
 		return errors.New("DLMetaData must not be nil")
 	}
-
+	
 	if err := dlroaming.EmitPRDownlink(ctx.ctx, ctx.rxPacket, ctx.prStartAns.PHYPayload, *ctx.prStartAns.DLMetaData); err != nil {
 		return errors.Wrap(err, "send passive-roaming downlink error")
 	}
-
+	
 	return nil
 }
 
@@ -163,12 +163,12 @@ func (ctx *startPRFNSContext) saveRoamingSession() error {
 	if ctx.prStartAns.DevAddr == nil || ctx.prStartAns.Lifetime == nil || *ctx.prStartAns.Lifetime == 0 {
 		return nil
 	}
-
+	
 	id, err := uuid.NewV4()
 	if err != nil {
 		return errors.Wrap(err, "get new uuid error")
 	}
-
+	
 	sess := storage.PassiveRoamingDeviceSession{
 		SessionID: id,
 		NetID:     ctx.homeNetID,
@@ -176,17 +176,17 @@ func (ctx *startPRFNSContext) saveRoamingSession() error {
 		DevAddr:   *ctx.prStartAns.DevAddr,
 		Lifetime:  time.Now().Add(time.Duration(*ctx.prStartAns.Lifetime) * time.Second),
 	}
-
+	
 	// FNwkSIntKey (LoRaWAN 1.1)
 	if fNwkSIntKey := ctx.prStartAns.FNwkSIntKey; fNwkSIntKey != nil {
 		sess.LoRaWAN11 = true
-
+		
 		if fNwkSIntKey.KEKLabel != "" {
 			kek, err := roaming.GetKEKKey(fNwkSIntKey.KEKLabel)
 			if err != nil {
 				return errors.Wrap(err, "get kek error")
 			}
-
+			
 			key, err := fNwkSIntKey.Unwrap(kek)
 			if err != nil {
 				return errors.Wrap(err, "unwrap FNwkSIntKey with kek error")
@@ -196,7 +196,7 @@ func (ctx *startPRFNSContext) saveRoamingSession() error {
 			copy(sess.FNwkSIntKey[:], fNwkSIntKey.AESKey[:])
 		}
 	}
-
+	
 	// NwkSKey (LoRaWAN 1.0)
 	if nwkSKey := ctx.prStartAns.NwkSKey; nwkSKey != nil {
 		if nwkSKey.KEKLabel != "" {
@@ -204,7 +204,7 @@ func (ctx *startPRFNSContext) saveRoamingSession() error {
 			if err != nil {
 				return errors.Wrap(err, "get kek error")
 			}
-
+			
 			key, err := nwkSKey.Unwrap(kek)
 			if err != nil {
 				return errors.Wrap(err, "unwrap NwkSKey with kek error")
@@ -214,10 +214,10 @@ func (ctx *startPRFNSContext) saveRoamingSession() error {
 			copy(sess.FNwkSIntKey[:], nwkSKey.AESKey[:])
 		}
 	}
-
+	
 	if err := storage.SavePassiveRoamingDeviceSession(ctx.ctx, &sess); err != nil {
 		return errors.Wrap(err, "save passive-roaming device-session error")
 	}
-
+	
 	return nil
 }

@@ -3,13 +3,13 @@ package storage
 import (
 	"context"
 	"testing"
-
+	
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/require"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/test"
-	"github.com/brocaar/lorawan"
-	loraband "github.com/brocaar/lorawan/band"
+	"github.com/risinghf/lorawan"
+	loraband "github.com/risinghf/lorawan/band"
 )
 
 func TestGetRandomDevAddr(t *testing.T) {
@@ -17,11 +17,11 @@ func TestGetRandomDevAddr(t *testing.T) {
 	if err := Setup(conf); err != nil {
 		t.Fatal(err)
 	}
-
+	
 	Convey("Given a Redis database and NetID 010203", t, func() {
 		RedisClient().FlushAll(context.Background())
 		netID := lorawan.NetID{1, 2, 3}
-
+		
 		Convey("When calling getRandomDevAddr many times, it should always return an unique DevAddr", func() {
 			log := make(map[lorawan.DevAddr]struct{})
 			for i := 0; i < 1000; i++ {
@@ -44,44 +44,44 @@ func TestGetRandomDevAddr(t *testing.T) {
 func TestUplinkHistory(t *testing.T) {
 	Convey("Given an empty device-session", t, func() {
 		s := DeviceSession{}
-
+		
 		Convey("When appending 30 items to the UplinkHistory", func() {
 			for i := uint32(0); i < 30; i++ {
 				s.AppendUplinkHistory(UplinkHistory{FCnt: i})
 			}
-
+			
 			Convey("Then only the last 20 items are preserved", func() {
 				So(s.UplinkHistory, ShouldHaveLength, 20)
 				So(s.UplinkHistory[19].FCnt, ShouldEqual, 29)
 				So(s.UplinkHistory[0].FCnt, ShouldEqual, 10)
 			})
 		})
-
+		
 		Convey("In case of adding the same FCnt twice", func() {
 			s.AppendUplinkHistory(UplinkHistory{FCnt: 10, MaxSNR: 5})
 			s.AppendUplinkHistory(UplinkHistory{FCnt: 10, MaxSNR: 6})
-
+			
 			Convey("Then the first record is kept", func() {
 				So(s.UplinkHistory, ShouldHaveLength, 1)
 				So(s.UplinkHistory[0].MaxSNR, ShouldEqual, 5)
 			})
 		})
-
+		
 		Convey("When appending 20 items, with two missing frames", func() {
 			for i := uint32(0); i < 20; i++ {
 				if i < 5 {
 					s.AppendUplinkHistory(UplinkHistory{FCnt: i})
 					continue
 				}
-
+				
 				if i < 10 {
 					s.AppendUplinkHistory(UplinkHistory{FCnt: i + 1})
 					continue
 				}
-
+				
 				s.AppendUplinkHistory(UplinkHistory{FCnt: i + 2})
 			}
-
+			
 			Convey("Then the packet-loss is 10%", func() {
 				So(s.GetPacketLossPercentage(), ShouldEqual, 10)
 			})
@@ -91,21 +91,21 @@ func TestUplinkHistory(t *testing.T) {
 
 func (ts *StorageTestSuite) TestDeviceGatewayRXInfoSet() {
 	devEUI := lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8}
-
+	
 	ts.T().Run("Does not exist", func(t *testing.T) {
 		assert := require.New(t)
-
+		
 		_, err := GetDeviceGatewayRXInfoSet(context.Background(), devEUI)
 		assert.Equal(ErrDoesNotExist, err)
-
+		
 		sets, err := GetDeviceGatewayRXInfoSetForDevEUIs(context.Background(), []lorawan.EUI64{devEUI})
 		assert.NoError(err)
 		assert.Len(sets, 0)
 	})
-
+	
 	ts.T().Run("Create", func(t *testing.T) {
 		assert := require.New(t)
-
+		
 		rxInfoSet := DeviceGatewayRXInfoSet{
 			DevEUI: devEUI,
 			DR:     3,
@@ -121,23 +121,23 @@ func (ts *StorageTestSuite) TestDeviceGatewayRXInfoSet() {
 			},
 		}
 		assert.NoError(SaveDeviceGatewayRXInfoSet(context.Background(), rxInfoSet))
-
+		
 		t.Run("Get", func(t *testing.T) {
 			assert := require.New(t)
-
+			
 			rxInfoSetGet, err := GetDeviceGatewayRXInfoSet(context.Background(), devEUI)
 			assert.NoError(err)
 			assert.Equal(rxInfoSet, rxInfoSetGet)
-
+			
 			rxInfoSets, err := GetDeviceGatewayRXInfoSetForDevEUIs(context.Background(), []lorawan.EUI64{devEUI})
 			assert.NoError(err)
 			assert.Len(rxInfoSets, 1)
 			assert.Equal(rxInfoSet, rxInfoSets[0])
 		})
-
+		
 		t.Run("Delete", func(t *testing.T) {
 			assert := require.New(t)
-
+			
 			assert.NoError(DeleteDeviceGatewayRXInfoSet(context.Background(), devEUI))
 			_, err := GetDeviceGatewayRXInfoSet(context.Background(), devEUI)
 			assert.Equal(ErrDoesNotExist, err)
@@ -154,24 +154,24 @@ func (ts *StorageTestSuite) TestDeviceSession() {
 		RX2Frequency:         869525000,
 		MACCommandErrorCount: make(map[lorawan.CID]int),
 	}
-
+	
 	ts.T().Run("Get non existing", func(t *testing.T) {
 		assert := require.New(t)
 		_, err := GetDeviceSession(context.Background(), s.DevEUI)
 		assert.Equal(ErrDoesNotExist, err)
 	})
-
+	
 	ts.T().Run("Save", func(t *testing.T) {
 		assert := require.New(t)
 		assert.NoError(SaveDeviceSession(context.Background(), s))
-
+		
 		t.Run("Get", func(t *testing.T) {
 			assert := require.New(t)
 			s2, err := GetDeviceSession(context.Background(), s.DevEUI)
 			assert.NoError(err)
 			assert.Equal(s, s2)
 		})
-
+		
 		t.Run("Delete", func(t *testing.T) {
 			assert := require.New(t)
 			assert.NoError(DeleteDeviceSession(context.Background(), s.DevEUI))
@@ -183,7 +183,7 @@ func (ts *StorageTestSuite) TestDeviceSession() {
 func (ts *StorageTestSuite) TestGetDeviceSessionForPHYPayload() {
 	assert := require.New(ts.T())
 	devAddr := lorawan.DevAddr{1, 2, 3, 4}
-
+	
 	deviceSessions := []DeviceSession{
 		{
 			DevAddr:            devAddr,
@@ -224,7 +224,7 @@ func (ts *StorageTestSuite) TestGetDeviceSessionForPHYPayload() {
 	for _, s := range deviceSessions {
 		assert.NoError(SaveDeviceSession(context.Background(), s))
 	}
-
+	
 	testTable := []struct {
 		Name           string
 		DevAddr        lorawan.DevAddr
@@ -296,11 +296,11 @@ func (ts *StorageTestSuite) TestGetDeviceSessionForPHYPayload() {
 			ExpectedFCntUp: 0,
 		},
 	}
-
+	
 	for _, tst := range testTable {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			assert := require.New(t)
-
+			
 			phy := lorawan.PHYPayload{
 				MHDR: lorawan.MHDR{
 					MType: lorawan.UnconfirmedDataUp,
@@ -315,14 +315,14 @@ func (ts *StorageTestSuite) TestGetDeviceSessionForPHYPayload() {
 				},
 			}
 			assert.NoError(phy.SetUplinkDataMIC(lorawan.LoRaWAN1_0, 0, 0, 0, tst.FNwkSIntKey, tst.SNwkSIntKey))
-
+			
 			s, err := GetDeviceSessionForPHYPayload(context.Background(), phy, 0, 0)
 			if tst.ExpectedError != nil {
 				assert.NotNil(err)
 				assert.Equal(tst.ExpectedError.Error(), err.Error())
 				return
 			}
-
+			
 			assert.NoError(err)
 			assert.Equal(tst.ExpectedDevEUI, s.DevEUI)
 			assert.Equal(tst.ExpectedFCntUp, s.FCntUp)
@@ -332,7 +332,7 @@ func (ts *StorageTestSuite) TestGetDeviceSessionForPHYPayload() {
 
 func TestGetFullFCntUp(t *testing.T) {
 	assert := require.New(t)
-
+	
 	// note that the ServerFCnt stores the expected frame-counter for the next
 	// uplink, so in the ideal case the ServerFCnt and DeviceFCnt are equal.
 	tests := []struct {
@@ -350,7 +350,7 @@ func TestGetFullFCntUp(t *testing.T) {
 		{(1 << 16), (1 << 16) - 1, (1 << 16) - 1}, // re-transmission of previous frame
 		{(1 << 32) - 1, 0, 0},                     // 32bit frame-counter rollover
 	}
-
+	
 	for i, test := range tests {
 		out := GetFullFCntUp(test.ServerFCnt, test.DeviceFCnt)
 		assert.Equalf(test.FullFCnt, out, "Test %d: expected %d, got %d", i, test.FullFCnt, out)

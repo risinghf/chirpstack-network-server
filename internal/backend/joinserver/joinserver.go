@@ -7,15 +7,15 @@ import (
 	"net/url"
 	"strings"
 	"time"
-
+	
 	"github.com/go-redis/redis/v8"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/config"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
-	"github.com/brocaar/lorawan/backend"
+	"github.com/risinghf/lorawan"
+	"github.com/risinghf/lorawan/backend"
 )
 
 type serverItem struct {
@@ -26,7 +26,7 @@ type serverItem struct {
 var (
 	servers []serverItem
 	keks    map[string][]byte
-
+	
 	netID               lorawan.NetID
 	resolveJoinEUI      bool
 	resolveDomainSuffix string
@@ -42,7 +42,7 @@ var (
 func Setup(c config.Config) error {
 	conf := c.JoinServer
 	keks = make(map[string][]byte)
-
+	
 	netID = c.NetworkServer.NetID
 	defaultServer = c.JoinServer.Default.Server
 	defaultCACert = c.JoinServer.Default.CACert
@@ -54,22 +54,22 @@ func Setup(c config.Config) error {
 		defaultRedisClient = storage.RedisClient()
 	}
 	defaultAsyncTimeout = c.JoinServer.Default.AsyncTimeout
-
+	
 	for _, s := range conf.Servers {
 		var joinEUI lorawan.EUI64
 		if err := joinEUI.UnmarshalText([]byte(s.JoinEUI)); err != nil {
 			return errors.Wrap(err, "decode joineui error")
 		}
-
+		
 		if s.Server == "" {
 			s.Server = joinEUIToServer(joinEUI, resolveDomainSuffix)
 		}
-
+		
 		var redisClient redis.UniversalClient
 		if s.Async {
 			redisClient = storage.RedisClient()
 		}
-
+		
 		client, err := backend.NewClient(backend.ClientConfig{
 			Logger:       log.StandardLogger(),
 			SenderID:     c.NetworkServer.NetID.String(),
@@ -84,22 +84,22 @@ func Setup(c config.Config) error {
 		if err != nil {
 			return errors.Wrap(err, "new backend client error")
 		}
-
+		
 		servers = append(servers, serverItem{
 			joinEUI: joinEUI,
 			client:  client,
 		})
 	}
-
+	
 	for _, k := range conf.KEK.Set {
 		kek, err := hex.DecodeString(k.KEK)
 		if err != nil {
 			return errors.Wrap(err, "decode kek error")
 		}
-
+		
 		keks[k.Label] = kek
 	}
-
+	
 	return nil
 }
 
@@ -111,19 +111,19 @@ func GetClientForJoinEUI(joinEUI lorawan.EUI64) (backend.Client, error) {
 			return s.client, nil
 		}
 	}
-
+	
 	// If DNS resolving is enabled, try to resolve the join-server through DNS.
 	if resolveJoinEUI {
 		client, err := resolveClient(joinEUI)
 		if err == nil {
 			return client, nil
 		}
-
+		
 		log.WithFields(log.Fields{
 			"join_eui": joinEUI,
 		}).Warning("joinserver: resolving JoinEUI failed, returning default join-server client")
 	}
-
+	
 	// Default join-server.
 	return getDefaultClient(joinEUI)
 }
@@ -134,12 +134,12 @@ func resolveClient(joinEUI lorawan.EUI64) (backend.Client, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "parse url error")
 	}
-
+	
 	_, err = net.LookupIP(serverParsed.Host)
 	if err != nil {
 		return nil, errors.Wrap(err, "lookup ip error")
 	}
-
+	
 	client, err := backend.NewClient(backend.ClientConfig{
 		Logger:       log.StandardLogger(),
 		SenderID:     netID.String(),
@@ -154,7 +154,7 @@ func resolveClient(joinEUI lorawan.EUI64) (backend.Client, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "joinserver: new client error")
 	}
-
+	
 	return client, nil
 }
 
@@ -173,7 +173,7 @@ func getDefaultClient(joinEUI lorawan.EUI64) (backend.Client, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "joinserver: new default client error")
 	}
-
+	
 	return defaultClient, nil
 }
 
@@ -188,10 +188,10 @@ func GetKEKKey(label string) ([]byte, error) {
 
 func joinEUIToServer(joinEUI lorawan.EUI64, domain string) string {
 	nibbles := strings.Split(joinEUI.String(), "")
-
+	
 	for i, j := 0, len(nibbles)-1; i < j; i, j = i+1, j-1 {
 		nibbles[i], nibbles[j] = nibbles[j], nibbles[i]
 	}
-
+	
 	return "https://" + strings.Join(nibbles, ".") + domain
 }

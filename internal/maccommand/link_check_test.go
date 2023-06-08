@@ -3,16 +3,16 @@ package maccommand
 import (
 	"context"
 	"testing"
-
+	
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/gw"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/band"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/helpers"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/models"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 type LinkCheckTestSuite struct {
@@ -22,13 +22,13 @@ type LinkCheckTestSuite struct {
 func (ts *LinkCheckTestSuite) TestLinkCheckReq() {
 	assert := require.New(ts.T())
 	ctx := context.Background()
-
+	
 	ds := storage.DeviceSession{
 		DevEUI:                [8]byte{1, 2, 3, 4, 5, 6, 7, 8},
 		EnabledUplinkChannels: []int{0, 1},
 	}
 	assert.NoError(storage.SaveDeviceSession(ctx, ds))
-
+	
 	block := storage.MACCommandBlock{
 		CID: lorawan.LinkCheckReq,
 		MACCommands: storage.MACCommands{
@@ -37,7 +37,7 @@ func (ts *LinkCheckTestSuite) TestLinkCheckReq() {
 			},
 		},
 	}
-
+	
 	rxPacket := models.RXPacket{
 		TXInfo: &gw.UplinkTXInfo{},
 		RXInfoSet: []*gw.UplinkRXInfo{
@@ -46,12 +46,12 @@ func (ts *LinkCheckTestSuite) TestLinkCheckReq() {
 			},
 		},
 	}
-
+	
 	assert.NoError(helpers.SetUplinkTXInfoDataRate(rxPacket.TXInfo, 2, band.Band()))
-
+	
 	resp, err := Handle(ctx, &ds, storage.DeviceProfile{}, storage.ServiceProfile{}, nil, block, nil, rxPacket)
 	assert.NoError(err)
-
+	
 	assert.Len(resp, 1)
 	assert.Equal(storage.MACCommandBlock{
 		CID: lorawan.LinkCheckAns,

@@ -5,18 +5,18 @@ import (
 	"encoding/binary"
 	"sort"
 	"time"
-
+	
 	"github.com/gofrs/uuid"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/pkg/errors"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/gw"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/backend/gateway"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/band"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/helpers"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/models"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan/backend"
+	"github.com/risinghf/lorawan/backend"
 )
 
 type bySignal []*gw.UplinkRXInfo
@@ -33,7 +33,7 @@ func (s bySignal) Less(i, j int) bool {
 	if s[i].LoraSnr == s[j].LoraSnr {
 		return s[i].Rssi > s[j].Rssi
 	}
-
+	
 	return s[i].LoraSnr > s[j].LoraSnr
 }
 
@@ -54,7 +54,7 @@ func EmitPRDownlink(ctx context.Context, rxPacket models.RXPacket, phy []byte, d
 		phyPayload: phy,
 		dlMetaData: dlMetaData,
 	}
-
+	
 	for _, f := range []func() error{
 		cctx.setDownlinkGateway,
 		cctx.setDownlinkFrame,
@@ -65,7 +65,7 @@ func EmitPRDownlink(ctx context.Context, rxPacket models.RXPacket, phy []byte, d
 			return err
 		}
 	}
-
+	
 	return nil
 }
 
@@ -73,7 +73,7 @@ func (ctx *emitPRDownlinkContext) setDownlinkGateway() error {
 	if len(ctx.rxPacket.RXInfoSet) == 0 {
 		return errors.New("rx-info must not be empty")
 	}
-
+	
 	sort.Sort(bySignal(ctx.rxPacket.RXInfoSet))
 	ctx.downlinkGateway = storage.DeviceGatewayRXInfo{
 		RSSI:    int(ctx.rxPacket.RXInfoSet[0].Rssi),
@@ -82,9 +82,9 @@ func (ctx *emitPRDownlinkContext) setDownlinkGateway() error {
 		Board:   ctx.rxPacket.RXInfoSet[0].Board,
 		Context: ctx.rxPacket.RXInfoSet[0].Context,
 	}
-
+	
 	copy(ctx.downlinkGateway.GatewayID[:], ctx.rxPacket.RXInfoSet[0].GatewayId)
-
+	
 	return nil
 }
 
@@ -93,13 +93,13 @@ func (ctx *emitPRDownlinkContext) setDownlinkFrame() error {
 	if err != nil {
 		return errors.Wrap(err, "new uuid error")
 	}
-
+	
 	ctx.downlinkFrame = gw.DownlinkFrame{
 		DownlinkId: id[:],
 		Token:      uint32(binary.BigEndian.Uint16(id[0:2])),
 		GatewayId:  ctx.downlinkGateway.GatewayID[:],
 	}
-
+	
 	if ctx.dlMetaData.ClassMode != nil && *ctx.dlMetaData.ClassMode == "A" {
 		if ctx.dlMetaData.DLFreq1 != nil && ctx.dlMetaData.DataRate1 != nil && ctx.dlMetaData.RXDelay1 != nil {
 			item := gw.DownlinkFrameItem{
@@ -115,15 +115,15 @@ func (ctx *emitPRDownlinkContext) setDownlinkFrame() error {
 					Context: ctx.downlinkGateway.Context,
 				},
 			}
-
+			
 			item.TxInfo.Power = int32(band.Band().GetDownlinkTXPower(item.TxInfo.Frequency))
 			if err := helpers.SetDownlinkTXInfoDataRate(item.TxInfo, *ctx.dlMetaData.DataRate1, band.Band()); err != nil {
 				return errors.Wrap(err, "set txinfo data-rate error")
 			}
-
+			
 			ctx.downlinkFrame.Items = append(ctx.downlinkFrame.Items, &item)
 		}
-
+		
 		if ctx.dlMetaData.DLFreq2 != nil && ctx.dlMetaData.DataRate2 != nil && ctx.dlMetaData.RXDelay1 != nil {
 			item := gw.DownlinkFrameItem{
 				PhyPayload: ctx.phyPayload,
@@ -138,16 +138,16 @@ func (ctx *emitPRDownlinkContext) setDownlinkFrame() error {
 					Context: ctx.downlinkGateway.Context,
 				},
 			}
-
+			
 			item.TxInfo.Power = int32(band.Band().GetDownlinkTXPower(item.TxInfo.Frequency))
 			if err := helpers.SetDownlinkTXInfoDataRate(item.TxInfo, *ctx.dlMetaData.DataRate2, band.Band()); err != nil {
 				return errors.Wrap(err, "set txinfo data-rate error")
 			}
-
+			
 			ctx.downlinkFrame.Items = append(ctx.downlinkFrame.Items, &item)
 		}
 	}
-
+	
 	return nil
 }
 
@@ -156,11 +156,11 @@ func (ctx *emitPRDownlinkContext) saveDownlinkFrame() error {
 		Token:         ctx.downlinkFrame.Token,
 		DownlinkFrame: &ctx.downlinkFrame,
 	}
-
+	
 	if err := storage.SaveDownlinkFrame(ctx.ctx, &df); err != nil {
 		return errors.Wrap(err, "save downlink-frame error")
 	}
-
+	
 	return nil
 }
 
@@ -168,10 +168,10 @@ func (ctx *emitPRDownlinkContext) sendDownlinkFrame() error {
 	if len(ctx.downlinkFrame.Items) == 0 {
 		return nil
 	}
-
+	
 	if err := gateway.Backend().SendTXPacket(ctx.downlinkFrame); err != nil {
 		return errors.Wrap(err, "send downlink-frame to gateway error")
 	}
-
+	
 	return nil
 }

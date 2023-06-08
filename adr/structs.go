@@ -2,9 +2,9 @@ package adr
 
 import (
 	"net/rpc"
-
-	"github.com/brocaar/lorawan"
+	
 	"github.com/hashicorp/go-plugin"
+	"github.com/risinghf/lorawan"
 )
 
 // HandshakeConfig for ADR plugins.
@@ -25,43 +25,43 @@ type Handler interface {
 type HandleRequest struct {
 	// Region.
 	Region string
-
+	
 	// DevEUI of the device.
 	DevEUI lorawan.EUI64
-
+	
 	// MAC version of the device.
 	MACVersion string
-
+	
 	// Regional parameter revision.
 	RegParamsRevision string
-
+	
 	// ADR defines if the device has ADR enabled.
 	ADR bool
-
+	
 	// DR holds the uplink data-rate of the device.
 	DR int
-
+	
 	// TxPowerIndex holds the current tx-power index of the device.
 	TxPowerIndex int
-
+	
 	// NbTrans holds the number of transmissions for the device.
 	NbTrans int
-
+	
 	// MaxTxPowerIndex defines the max allowed tx-power index.
 	MaxTxPowerIndex int
-
+	
 	// RequiredSNRForDR defines the min. required SNR for the current data-rate.
 	RequiredSNRForDR float32
-
+	
 	// InstallationMargin defines the configured installation margin.
 	InstallationMargin float32
-
+	
 	// MinDR defines the min. allowed data-rate.
 	MinDR int
-
+	
 	// MaxDR defines the max. allowed data-rate.
 	MaxDR int
-
+	
 	// UplinkHistory contains the meta-data of the last uplinks.
 	// Note: this table is for the current data-date only!
 	UplinkHistory []UplinkMetaData
@@ -71,10 +71,10 @@ type HandleRequest struct {
 type HandleResponse struct {
 	// DR holds the data-rate to which the device must change.
 	DR int
-
+	
 	// TxPowerIndex holds the tx-power index to which the device must change.
 	TxPowerIndex int
-
+	
 	// NbTrans holds the number of transmissions which the device must use for each uplink.
 	NbTrans int
 }

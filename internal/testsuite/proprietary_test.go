@@ -2,10 +2,10 @@ package testsuite
 
 import (
 	"testing"
-
+	
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/as"
 	"github.com/brocaar/chirpstack-api/go/v3/common"
 	"github.com/brocaar/chirpstack-api/go/v3/gw"
@@ -13,7 +13,7 @@ import (
 	"github.com/brocaar/chirpstack-network-server/v3/internal/downlink"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/test"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 type ProprietaryTestCase struct {
@@ -23,14 +23,14 @@ type ProprietaryTestCase struct {
 func (ts *ProprietaryTestCase) SetupTest() {
 	ts.IntegrationTestSuite.SetupTest()
 	assert := require.New(ts.T())
-
+	
 	conf := test.GetConfig()
 	assert.NoError(downlink.Setup(conf))
 }
 
 func (ts *ProprietaryTestCase) TestDownlink() {
 	gatewayID := lorawan.EUI64{8, 7, 6, 5, 4, 3, 2, 1}
-
+	
 	tests := []DownlinkProprietaryTest{
 		{
 			Name: "send proprietary payload (iPol true)",
@@ -42,7 +42,7 @@ func (ts *ProprietaryTestCase) TestDownlink() {
 				Frequency:             868100000,
 				Dr:                    5,
 			},
-
+			
 			Assert: []Assertion{
 				AssertDownlinkFrame(gatewayID, gw.DownlinkTXInfo{
 					Frequency:  868100000,
@@ -80,7 +80,7 @@ func (ts *ProprietaryTestCase) TestDownlink() {
 				Frequency:             868100000,
 				Dr:                    5,
 			},
-
+			
 			Assert: []Assertion{
 				AssertDownlinkFrame(gatewayID, gw.DownlinkTXInfo{
 					Frequency:  868100000,
@@ -109,7 +109,7 @@ func (ts *ProprietaryTestCase) TestDownlink() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertDownlinkProprietaryTest(t, tst)
@@ -121,7 +121,7 @@ func (ts *ProprietaryTestCase) TestUplink() {
 	// the routing profile is needed as the ns will send the proprietary
 	// frame to all application-servers.
 	ts.CreateRoutingProfile(storage.RoutingProfile{})
-
+	
 	ts.CreateGateway(storage.Gateway{
 		GatewayID: lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8},
 		Location: storage.GPSPoint{
@@ -130,7 +130,7 @@ func (ts *ProprietaryTestCase) TestUplink() {
 		},
 		Altitude: 10,
 	})
-
+	
 	tests := []UplinkProprietaryTest{
 		{
 			Name: "uplink proprietary payload",
@@ -189,7 +189,7 @@ func (ts *ProprietaryTestCase) TestUplink() {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		ts.T().Run(tst.Name, func(t *testing.T) {
 			ts.AssertUplinkProprietaryTest(t, tst)

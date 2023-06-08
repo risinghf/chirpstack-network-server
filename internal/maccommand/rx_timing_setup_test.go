@@ -4,16 +4,16 @@ import (
 	"context"
 	"fmt"
 	"testing"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestRequestRXTimingSetup(t *testing.T) {
 	Convey("When calling RequestRXTimingSetup", t, func() {
 		block := RequestRXTimingSetup(14)
-
+		
 		Convey("Then the expected block is returned", func() {
 			So(block, ShouldResemble, storage.MACCommandBlock{
 				CID: lorawan.RXTimingSetupReq,
@@ -64,7 +64,7 @@ func TestHandleRXTimingSetupAns(t *testing.T) {
 				},
 			},
 		}
-
+		
 		for i, t := range tests {
 			Convey(fmt.Sprintf("Testing: %s [%d]", t.Name, i), func() {
 				ans, err := handleRXTimingSetupAns(context.Background(), &t.DeviceSession, t.ReceivedMACCommandBlock, t.PendingMACCommandBlock)

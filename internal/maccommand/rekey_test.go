@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"testing"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
-
+	"github.com/risinghf/lorawan"
+	
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -36,7 +36,7 @@ func TestRekey(t *testing.T) {
 				},
 			},
 		}
-
+		
 		for i, test := range tests {
 			Convey(fmt.Sprintf("Testing: %s [%d]", test.Name, i), func() {
 				req := storage.MACCommandBlock{
@@ -52,9 +52,9 @@ func TestRekey(t *testing.T) {
 						},
 					},
 				}
-
+				
 				ds := storage.DeviceSession{}
-
+				
 				out, err := handleRekeyInd(context.Background(), &ds, req)
 				So(err, ShouldBeNil)
 				So(out, ShouldHaveLength, 1)

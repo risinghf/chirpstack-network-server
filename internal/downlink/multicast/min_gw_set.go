@@ -3,24 +3,24 @@ package multicast
 import (
 	"encoding/binary"
 	"math"
-
+	
 	log "github.com/sirupsen/logrus"
 	"gonum.org/v1/gonum/graph"
 	"gonum.org/v1/gonum/graph/path"
 	"gonum.org/v1/gonum/graph/simple"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/band"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 // GetMinimumGatewaySet returns the minimum set of gateways to cover all
 // devices.
 func GetMinimumGatewaySet(rxInfoSets []storage.DeviceGatewayRXInfoSet) ([]lorawan.EUI64, error) {
 	g := simple.NewWeightedUndirectedGraph(0, math.Inf(1))
-
+	
 	gwSet := getGatewaySet(rxInfoSets)
-
+	
 	// connect all gateways
 	// W -999 is used so that the mst algorithm will remove the edge between
 	// the gateway and a device first, over removing an edge between two
@@ -29,49 +29,49 @@ func GetMinimumGatewaySet(rxInfoSets []storage.DeviceGatewayRXInfoSet) ([]lorawa
 		if i == 0 {
 			continue
 		}
-
+		
 		g.SetWeightedEdge(simple.WeightedEdge{
 			F: simple.Node(eui64Int64(gwSet[0])),
 			T: simple.Node(eui64Int64(gatewayID)),
 			W: -999,
 		})
 	}
-
+	
 	// connect all devices to the gateways
 	addDeviceEdges(g, rxInfoSets)
-
+	
 	dst := simple.NewWeightedUndirectedGraph(0, math.Inf(1))
 	path.Kruskal(dst, g)
-
+	
 	outMap := make(map[lorawan.EUI64]struct{})
-
+	
 	edges := dst.Edges()
 	for edges.Next() {
 		e := edges.Edge()
-
+		
 		fromEUI := int64ToEUI64(e.From().ID())
 		toEUI := int64ToEUI64(e.To().ID())
-
+		
 		fromIsGW := gwInGWSet(fromEUI, gwSet)
 		toIsGW := gwInGWSet(toEUI, gwSet)
-
+		
 		// skip gateway to gateway edges
 		if !(fromIsGW && toIsGW) {
 			if fromIsGW {
 				outMap[fromEUI] = struct{}{}
 			}
-
+			
 			if toIsGW {
 				outMap[toEUI] = struct{}{}
 			}
 		}
 	}
-
+	
 	var outSlice []lorawan.EUI64
 	for k := range outMap {
 		outSlice = append(outSlice, k)
 	}
-
+	
 	return outSlice, nil
 }
 
@@ -82,12 +82,12 @@ func getGatewaySet(rxInfoSets []storage.DeviceGatewayRXInfoSet) []lorawan.EUI64 
 			gwSet[rxInfo.GatewayID] = struct{}{}
 		}
 	}
-
+	
 	var out []lorawan.EUI64
 	for k := range gwSet {
 		out = append(out, k)
 	}
-
+	
 	return out
 }
 
@@ -108,7 +108,7 @@ func gwInGWSet(gatewayID lorawan.EUI64, gwSet []lorawan.EUI64) bool {
 			found = true
 		}
 	}
-
+	
 	return found
 }
 
@@ -120,27 +120,27 @@ func addDeviceEdges(g *simple.WeightedUndirectedGraph, rxInfoSets []storage.Devi
 				"dr": dr,
 			}).Error("invalid data-data")
 		}
-
+		
 		reqSNR, ok := spreadFactorToRequiredSNRTable[dr.SpreadFactor]
 		if ok {
 			reqSNR += installationMargin
 		}
-
+		
 		var hasReqSNR bool
-
+		
 		for _, item := range rxInfo.Items {
 			if item.LoRaSNR >= reqSNR {
 				hasReqSNR = true
 			}
 		}
-
+		
 		for _, item := range rxInfo.Items {
 			// ignore items that do not have the min. required SNR value,
 			// knowning that we have items that do meet the min. req SNR.
 			if item.LoRaSNR < reqSNR && hasReqSNR {
 				continue
 			}
-
+			
 			g.SetWeightedEdge(deviceGatewayEdge{
 				gatewayID: item.GatewayID,
 				devEUI:    rxInfo.DevEUI,
@@ -171,13 +171,13 @@ func (e deviceGatewayEdge) To() graph.Node {
 // gateway.
 func (e deviceGatewayEdge) Weight() float64 {
 	weight := float64(1)
-
+	
 	gwNodes := e.graph.From(eui64Int64(e.gatewayID))
-
+	
 	if gwNodes.Len() != 0 {
 		weight = weight / float64(gwNodes.Len())
 	}
-
+	
 	return weight
 }
 

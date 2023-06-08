@@ -3,13 +3,13 @@ package storage
 import (
 	"context"
 	"time"
-
+	
 	"github.com/gofrs/uuid"
 	"github.com/jmoiron/sqlx"
 	log "github.com/sirupsen/logrus"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/logging"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 // DeviceMode defines the mode in which the device operates.
@@ -55,7 +55,7 @@ func CreateDevice(ctx context.Context, db sqlx.Execer, d *Device) error {
 	now := time.Now()
 	d.CreatedAt = now
 	d.UpdatedAt = now
-
+	
 	_, err := db.Exec(`
 		insert into device (
 			dev_eui,
@@ -83,12 +83,12 @@ func CreateDevice(ctx context.Context, db sqlx.Execer, d *Device) error {
 	if err != nil {
 		return handlePSQLError(err, "insert error")
 	}
-
+	
 	log.WithFields(log.Fields{
 		"dev_eui": d.DevEUI,
 		"ctx_id":  ctx.Value(logging.ContextIDKey),
 	}).Info("device created")
-
+	
 	return nil
 }
 
@@ -96,16 +96,16 @@ func CreateDevice(ctx context.Context, db sqlx.Execer, d *Device) error {
 func GetDevice(ctx context.Context, db sqlx.Queryer, devEUI lorawan.EUI64, forUpdate bool) (Device, error) {
 	var d Device
 	var fu string
-
+	
 	if forUpdate {
 		fu = " for update"
 	}
-
+	
 	err := sqlx.Get(db, &d, "select * from device where dev_eui = $1"+fu, devEUI[:])
 	if err != nil {
 		return d, handlePSQLError(err, "select error")
 	}
-
+	
 	return d, nil
 }
 
@@ -144,7 +144,7 @@ func UpdateDevice(ctx context.Context, db sqlx.Execer, d *Device) error {
 	if ra == 0 {
 		return ErrDoesNotExist
 	}
-
+	
 	log.WithFields(log.Fields{
 		"dev_eui": d.DevEUI,
 		"ctx_id":  ctx.Value(logging.ContextIDKey),
@@ -158,7 +158,7 @@ func DeleteDevice(ctx context.Context, db sqlx.Execer, devEUI lorawan.EUI64) err
 	if err != nil {
 		return handlePSQLError(err, "delete error")
 	}
-
+	
 	ra, err := res.RowsAffected()
 	if err != nil {
 		return handlePSQLError(err, "get rows affected error")
@@ -166,7 +166,7 @@ func DeleteDevice(ctx context.Context, db sqlx.Execer, devEUI lorawan.EUI64) err
 	if ra == 0 {
 		return ErrDoesNotExist
 	}
-
+	
 	log.WithFields(log.Fields{
 		"dev_eui": devEUI,
 		"ctx_id":  ctx.Value(logging.ContextIDKey),
@@ -177,7 +177,7 @@ func DeleteDevice(ctx context.Context, db sqlx.Execer, devEUI lorawan.EUI64) err
 // CreateDeviceActivation creates the given device-activation.
 func CreateDeviceActivation(ctx context.Context, db sqlx.Queryer, da *DeviceActivation) error {
 	da.CreatedAt = time.Now()
-
+	
 	err := sqlx.Get(db, &da.ID, `
 		insert into device_activation (
 			created_at,
@@ -204,13 +204,13 @@ func CreateDeviceActivation(ctx context.Context, db sqlx.Queryer, da *DeviceActi
 	if err != nil {
 		return handlePSQLError(err, "insert error")
 	}
-
+	
 	log.WithFields(log.Fields{
 		"id":      da.ID,
 		"dev_eui": da.DevEUI,
 		"ctx_id":  ctx.Value(logging.ContextIDKey),
 	}).Info("device-activation created")
-
+	
 	return nil
 }
 
@@ -227,7 +227,7 @@ func DeleteDeviceActivationsForDevice(ctx context.Context, db sqlx.Execer, devEU
 	if err != nil {
 		return handlePSQLError(err, "delete error")
 	}
-
+	
 	log.WithFields(log.Fields{
 		"dev_eui": devEUI,
 		"ctx_id":  ctx.Value(logging.ContextIDKey),
@@ -253,7 +253,7 @@ func GetLastDeviceActivationForDevEUI(ctx context.Context, db sqlx.Queryer, devE
 	if err != nil {
 		return da, handlePSQLError(err, "select error")
 	}
-
+	
 	return da, nil
 }
 
@@ -279,11 +279,11 @@ func ValidateDevNonce(ctx context.Context, db sqlx.Queryer, joinEUI, devEUI lora
 	if err != nil {
 		return handlePSQLError(err, "select error")
 	}
-
+	
 	if count != 0 {
 		return ErrAlreadyExists
 	}
-
+	
 	return nil
 }
 
@@ -303,7 +303,7 @@ func ClearDeviceNoncesForDevice(ctx context.Context, db sqlx.Execer, devEUI lora
 	if err != nil {
 		return handlePSQLError(err, "device devnonce delete error")
 	}
-
+	
 	log.WithFields(log.Fields{
 		"dev_eui": devEUI,
 		"ctx_id":  ctx.Value(logging.ContextIDKey),

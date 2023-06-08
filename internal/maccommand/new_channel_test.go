@@ -3,21 +3,21 @@ package maccommand
 import (
 	"context"
 	"testing"
-
+	
 	"github.com/stretchr/testify/require"
-
+	
 	nsband "github.com/brocaar/chirpstack-network-server/v3/internal/band"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/test"
-	"github.com/brocaar/lorawan"
-	"github.com/brocaar/lorawan/band"
+	"github.com/risinghf/lorawan"
+	"github.com/risinghf/lorawan/band"
 )
 
 func TestNewChannel(t *testing.T) {
 	assert := require.New(t)
 	conf := test.GetConfig()
 	assert.NoError(nsband.Setup(conf))
-
+	
 	t.Run("NewChannelReq", func(t *testing.T) {
 		tests := []struct {
 			Name                    string
@@ -104,7 +104,7 @@ func TestNewChannel(t *testing.T) {
 				},
 			},
 		}
-
+		
 		for _, tst := range tests {
 			t.Run(tst.Name, func(t *testing.T) {
 				resp := RequestNewChannels(lorawan.EUI64{}, 3, tst.CurrentChannels, tst.WantedChannels)
@@ -116,7 +116,7 @@ func TestNewChannel(t *testing.T) {
 			})
 		}
 	})
-
+	
 	t.Run("handleNewChannelAns", func(t *testing.T) {
 		tests := []struct {
 			Name                    string
@@ -256,11 +256,11 @@ func TestNewChannel(t *testing.T) {
 				},
 			},
 		}
-
+		
 		for _, tst := range tests {
 			t.Run(tst.Name, func(t *testing.T) {
 				assert := require.New(t)
-
+				
 				ans, err := handleNewChannelAns(context.Background(), &tst.DeviceSession, tst.ReceivedMACCommandBlock, tst.PendingMACCommandBlock)
 				if tst.ExpectedError != nil {
 					assert.Equal(tst.ExpectedError.Error(), err.Error())

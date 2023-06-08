@@ -4,17 +4,17 @@ import (
 	"context"
 	"testing"
 	"time"
-
+	
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/common"
 	"github.com/brocaar/chirpstack-api/go/v3/gw"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/uplink"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 type AddGatewayMetaDataTestSuite struct {
@@ -23,7 +23,7 @@ type AddGatewayMetaDataTestSuite struct {
 
 func (ts *AddGatewayMetaDataTestSuite) SetupTest() {
 	ts.IntegrationTestSuite.SetupTest()
-
+	
 	ts.CreateServiceProfile(storage.ServiceProfile{AddGWMetadata: true})
 	ts.CreateGateway(storage.Gateway{GatewayID: lorawan.EUI64{8, 7, 6, 5, 4, 3, 2, 1}})
 	ts.CreateDevice(storage.Device{DevEUI: lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8}})
@@ -34,15 +34,15 @@ func (ts *AddGatewayMetaDataTestSuite) TestAddGatewayMetaData() {
 	assert := require.New(ts.T())
 	fpgaID := lorawan.EUI64{1, 2, 1, 2, 1, 2, 1, 2}
 	aesKey := lorawan.AES128Key{95, 234, 253, 54, 71, 53, 27, 235, 66, 63, 147, 206, 241, 74, 93, 219}
-
+	
 	now := time.Now().UTC().Round(time.Second)
 	nowPB, err := ptypes.TimestampProto(now)
 	assert.NoError(err)
-
+	
 	fineTime := now.Add(186118527 * time.Nanosecond)
 	fineTimePB, err := ptypes.TimestampProto(fineTime)
 	assert.NoError(err)
-
+	
 	tests := []struct {
 		Name                   string
 		FPGAID                 *lorawan.EUI64
@@ -50,7 +50,7 @@ func (ts *AddGatewayMetaDataTestSuite) TestAddGatewayMetaData() {
 		Location               storage.GPSPoint
 		Altitude               float64
 		EncryptedFineTimestamp *gw.EncryptedFineTimestamp
-
+		
 		ExpectedLocation      common.Location
 		ExpectedFineTimestamp interface{}
 	}{
@@ -79,7 +79,7 @@ func (ts *AddGatewayMetaDataTestSuite) TestAddGatewayMetaData() {
 				EncryptedNs: []byte{1, 2, 3, 4, 5},
 			},
 			FPGAID: &fpgaID,
-
+			
 			ExpectedLocation: common.Location{
 				Latitude:  1.1234,
 				Longitude: 2.1234,
@@ -104,7 +104,7 @@ func (ts *AddGatewayMetaDataTestSuite) TestAddGatewayMetaData() {
 			},
 			FPGAID:              &fpgaID,
 			FineTimestampAESKey: &aesKey,
-
+			
 			ExpectedLocation: common.Location{
 				Latitude:  1.1234,
 				Longitude: 2.1234,
@@ -115,7 +115,7 @@ func (ts *AddGatewayMetaDataTestSuite) TestAddGatewayMetaData() {
 			},
 		},
 	}
-
+	
 	for _, test := range tests {
 		// flush clients and reload device-session as the frame-counter
 		// increments on every test
@@ -123,10 +123,10 @@ func (ts *AddGatewayMetaDataTestSuite) TestAddGatewayMetaData() {
 		ds, err := storage.GetDeviceSession(context.Background(), ts.DeviceSession.DevEUI)
 		assert.NoError(err)
 		ts.DeviceSession = &ds
-
+		
 		ts.T().Run(test.Name, func(t *testing.T) {
 			assert := require.New(t)
-
+			
 			txInfo := gw.UplinkTXInfo{
 				Frequency:  868300000,
 				Modulation: common.Modulation_LORA,
@@ -149,28 +149,28 @@ func (ts *AddGatewayMetaDataTestSuite) TestAddGatewayMetaData() {
 					EncryptedFineTimestamp: test.EncryptedFineTimestamp,
 				}
 			}
-
+			
 			ts.Gateway.Boards = []storage.GatewayBoard{
 				{
 					FPGAID:           test.FPGAID,
 					FineTimestampKey: test.FineTimestampAESKey,
 				},
 			}
-
+			
 			ts.Gateway.Location = test.Location
 			ts.Gateway.Altitude = test.Altitude
-
+			
 			assert.NoError(storage.UpdateGateway(context.Background(), storage.DB(), ts.Gateway))
-
+			
 			assert.Nil(uplink.HandleUplinkFrame(context.Background(), ts.GetUplinkFrameForFRMPayload(rxInfo, txInfo, lorawan.UnconfirmedDataUp, 10, []byte{1, 2, 3, 4})))
-
+			
 			ulDataReq := <-ts.ASClient.HandleDataUpChan
 			assert.Len(ulDataReq.RxInfo, 1)
-
+			
 			rxItem := ulDataReq.RxInfo[0]
 			rxItem.Location.XXX_sizecache = 0
 			assert.Equal(&test.ExpectedLocation, rxItem.Location)
-
+			
 			switch rxItem.FineTimestampType {
 			case gw.FineTimestampType_ENCRYPTED:
 				tsInfo := rxItem.GetEncryptedFineTimestamp()

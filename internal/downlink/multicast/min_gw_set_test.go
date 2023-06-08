@@ -2,20 +2,20 @@ package multicast
 
 import (
 	"testing"
-
+	
 	"github.com/stretchr/testify/require"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/band"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/test"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 func TestGetMinimumGatewaySet(t *testing.T) {
 	assert := require.New(t)
 	conf := test.GetConfig()
 	assert.NoError(band.Setup(conf))
-
+	
 	testTable := []struct {
 		Name             string
 		RxInfoSets       []storage.DeviceGatewayRXInfoSet
@@ -53,7 +53,7 @@ func TestGetMinimumGatewaySet(t *testing.T) {
 					},
 				},
 			},
-
+			
 			// as the first gateway does not meet the min. required SNR.
 			ExpectedGateways: []lorawan.EUI64{{2, 2, 2, 2, 2, 2, 2, 2}},
 		},
@@ -138,11 +138,11 @@ func TestGetMinimumGatewaySet(t *testing.T) {
 			ExpectedGateways: []lorawan.EUI64{{2, 2, 2, 2, 2, 2, 2, 2}},
 		},
 	}
-
+	
 	for _, test := range testTable {
 		t.Run(test.Name, func(t *testing.T) {
 			assert := require.New(t)
-
+			
 			gws, err := GetMinimumGatewaySet(test.RxInfoSets)
 			assert.NoError(err)
 			assert.ElementsMatch(gws, test.ExpectedGateways)

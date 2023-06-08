@@ -4,20 +4,20 @@ import (
 	"context"
 	"testing"
 	"time"
-
-	"github.com/brocaar/lorawan"
+	
 	"github.com/gofrs/uuid"
+	"github.com/risinghf/lorawan"
 	"github.com/stretchr/testify/require"
 )
 
 func (ts *StorageTestSuite) TestPassiveRoaming() {
 	ts.T().Run("Save", func(t *testing.T) {
 		assert := require.New(t)
-
+		
 		sessID, err := uuid.NewV4()
 		assert.NoError(err)
 		lt := time.Now().Add(time.Millisecond * 100).UTC()
-
+		
 		ds := PassiveRoamingDeviceSession{
 			SessionID:   sessID,
 			NetID:       lorawan.NetID{1, 2, 3},
@@ -28,52 +28,52 @@ func (ts *StorageTestSuite) TestPassiveRoaming() {
 			Lifetime:    lt,
 			FCntUp:      10,
 		}
-
+		
 		assert.NoError(SavePassiveRoamingDeviceSession(context.Background(), &ds))
-
+		
 		ts.T().Run("Get IDs for DevAddr", func(t *testing.T) {
 			assert := require.New(t)
-
+			
 			ids, err := GetPassiveRoamingIDsForDevAddr(context.Background(), ds.DevAddr)
 			assert.NoError(err)
 			assert.Equal([]uuid.UUID{ds.SessionID}, ids)
 		})
-
+		
 		ts.T().Run("Get for DevAddr", func(t *testing.T) {
 			assert := require.New(t)
-
+			
 			sessions, err := GetPassiveRoamingDeviceSessionsForDevAddr(context.Background(), ds.DevAddr)
 			assert.NoError(err)
 			assert.Equal([]PassiveRoamingDeviceSession{ds}, sessions)
 		})
-
+		
 		ts.T().Run("Get by ID", func(t *testing.T) {
 			assert := require.New(t)
-
+			
 			dsGet, err := GetPassiveRoamingDeviceSession(context.Background(), sessID)
 			assert.NoError(err)
 			assert.Equal(ds, dsGet)
 		})
-
+		
 		ts.T().Run("Expire", func(t *testing.T) {
 			assert := require.New(t)
 			time.Sleep(time.Millisecond * 100)
-
+			
 			_, err := GetPassiveRoamingDeviceSession(context.Background(), sessID)
 			assert.Equal(ErrDoesNotExist, err)
 		})
 	})
-
+	
 	ts.T().Run("Get for PHYPayload", func(t *testing.T) {
 		assert := require.New(t)
 		id1, err := uuid.NewV4()
 		assert.NoError(err)
 		id2, err := uuid.NewV4()
 		assert.NoError(err)
-
+		
 		fNwkSIntKey := lorawan.AES128Key{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 		sNwkSIntKey := lorawan.AES128Key{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2}
-
+		
 		lw10PHY := lorawan.PHYPayload{
 			MHDR: lorawan.MHDR{
 				MType: lorawan.UnconfirmedDataUp,
@@ -87,7 +87,7 @@ func (ts *StorageTestSuite) TestPassiveRoaming() {
 			},
 		}
 		assert.NoError(lw10PHY.SetUplinkDataMIC(lorawan.LoRaWAN1_0, 0, 0, 0, fNwkSIntKey, fNwkSIntKey))
-
+		
 		lw11PHY := lorawan.PHYPayload{
 			MHDR: lorawan.MHDR{
 				MType: lorawan.UnconfirmedDataUp,
@@ -101,7 +101,7 @@ func (ts *StorageTestSuite) TestPassiveRoaming() {
 			},
 		}
 		assert.NoError(lw11PHY.SetUplinkDataMIC(lorawan.LoRaWAN1_1, 100, 3, 7, fNwkSIntKey, sNwkSIntKey))
-
+		
 		tests := []struct {
 			name             string
 			storedSessions   []PassiveRoamingDeviceSession
@@ -288,21 +288,21 @@ func (ts *StorageTestSuite) TestPassiveRoaming() {
 				phyPayload: lw11PHY,
 			},
 		}
-
+		
 		for _, tst := range tests {
 			t.Run(tst.name, func(t *testing.T) {
-
+				
 				assert := require.New(t)
 				assert.NoError(RedisClient().FlushAll(context.Background()).Err())
-
+				
 				for _, s := range tst.storedSessions {
 					assert.NoError(SavePassiveRoamingDeviceSession(context.Background(), &s))
 				}
-
+				
 				sessions, err := GetPassiveRoamingDeviceSessionsForPHYPayload(context.Background(), tst.phyPayload)
 				assert.NoError(err)
 				assert.Len(sessions, len(tst.expectedSessions))
-
+				
 				for _, s := range sessions {
 					var found bool
 					for _, es := range tst.expectedSessions {
@@ -310,7 +310,7 @@ func (ts *StorageTestSuite) TestPassiveRoaming() {
 							found = true
 						}
 					}
-
+					
 					assert.True(found)
 				}
 			})

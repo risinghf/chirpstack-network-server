@@ -2,12 +2,12 @@ package helpers
 
 import (
 	"testing"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/gw"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/config"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/models"
-	"github.com/brocaar/lorawan"
 	"github.com/gofrs/uuid"
+	"github.com/risinghf/lorawan"
 	"github.com/stretchr/testify/require"
 )
 
@@ -98,19 +98,19 @@ func TestFilterRxInfoByPublicOnly(t *testing.T) {
 			expectedError: ErrNoElements,
 		},
 	}
-
+	
 	for _, tst := range tests {
 		t.Run(tst.name, func(t *testing.T) {
 			conf := config.Get()
 			conf.NetworkServer.Gateway.ForceGwsPrivate = tst.forceGwsPrivate
-
+			
 			assert := require.New(t)
 			err := FilterRxInfoByPublicOnly(&tst.in)
 			assert.Equal(tst.expectedError, err)
 			if tst.expectedError != nil {
 				return
 			}
-
+			
 			assert.Equal(tst.expected, tst.in)
 		})
 	}
@@ -119,7 +119,7 @@ func TestFilterRxInfoByPublicOnly(t *testing.T) {
 func TestFilterRxInfoByServiceProfileID(t *testing.T) {
 	serviceProfileID1, _ := uuid.NewV4()
 	serviceProfileID2, _ := uuid.NewV4()
-
+	
 	tests := []struct {
 		name             string
 		forceGwsPrivate  bool
@@ -250,19 +250,19 @@ func TestFilterRxInfoByServiceProfileID(t *testing.T) {
 			},
 		},
 	}
-
+	
 	for _, tst := range tests {
 		t.Run(tst.name, func(t *testing.T) {
 			conf := config.Get()
 			conf.NetworkServer.Gateway.ForceGwsPrivate = tst.forceGwsPrivate
-
+			
 			assert := require.New(t)
 			err := FilterRxInfoByServiceProfileID(tst.serviceProfileID, &tst.in)
 			assert.Equal(tst.expectedError, err)
 			if tst.expectedError != nil {
 				return
 			}
-
+			
 			assert.Equal(tst.expected, tst.in)
 		})
 	}

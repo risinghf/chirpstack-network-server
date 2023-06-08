@@ -4,15 +4,15 @@ import (
 	"encoding/hex"
 	"fmt"
 	"time"
-
+	
 	"github.com/go-redis/redis/v8"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/config"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
-	"github.com/brocaar/lorawan/backend"
+	"github.com/risinghf/lorawan"
+	"github.com/risinghf/lorawan/backend"
 )
 
 // ErrNoAgreement is returned when the requested agreement could not be found.
@@ -33,7 +33,7 @@ var (
 	netID                    lorawan.NetID
 	agreements               []agreement
 	keks                     map[string][]byte
-
+	
 	defaultEnabled                bool
 	defaultPassiveRoaming         bool
 	defaultPassiveRoamingLifetime time.Duration
@@ -53,7 +53,7 @@ func Setup(c config.Config) error {
 	netID = c.NetworkServer.NetID
 	keks = make(map[string][]byte)
 	agreements = []agreement{}
-
+	
 	defaultEnabled = c.Roaming.Default.Enabled
 	defaultPassiveRoaming = c.Roaming.Default.PassiveRoaming
 	defaultPassiveRoamingLifetime = c.Roaming.Default.PassiveRoamingLifetime
@@ -65,18 +65,18 @@ func Setup(c config.Config) error {
 	defaultTLSCert = c.Roaming.Default.TLSCert
 	defaultTLSKey = c.Roaming.Default.TLSKey
 	defaultAuthorization = c.Roaming.Default.Authorization
-
+	
 	if defaultEnabled {
 		roamingEnabled = true
 	}
-
+	
 	for _, server := range c.Roaming.Servers {
 		roamingEnabled = true
-
+		
 		if server.Server == "" {
 			server.Server = fmt.Sprintf("https://%s%s", server.NetID.String(), resolveNetIDDomainSuffix)
 		}
-
+		
 		log.WithFields(log.Fields{
 			"net_id":                   server.NetID,
 			"passive_roaming":          server.PassiveRoaming,
@@ -85,12 +85,12 @@ func Setup(c config.Config) error {
 			"async":                    server.Async,
 			"async_timeout":            server.AsyncTimeout,
 		}).Info("roaming: configuring roaming agreement")
-
+		
 		var redisClient redis.UniversalClient
 		if server.Async {
 			redisClient = storage.RedisClient()
 		}
-
+		
 		client, err := backend.NewClient(backend.ClientConfig{
 			Logger:        log.StandardLogger(),
 			SenderID:      netID.String(),
@@ -106,7 +106,7 @@ func Setup(c config.Config) error {
 		if err != nil {
 			return errors.Wrapf(err, "new roaming client error for netid: %s", server.NetID)
 		}
-
+		
 		agreements = append(agreements, agreement{
 			netID:                  server.NetID,
 			passiveRoaming:         server.PassiveRoaming,
@@ -116,16 +116,16 @@ func Setup(c config.Config) error {
 			server:                 server.Server,
 		})
 	}
-
+	
 	for _, k := range c.Roaming.KEK.Set {
 		kek, err := hex.DecodeString(k.KEK)
 		if err != nil {
 			return errors.Wrap(err, "decode kek error")
 		}
-
+		
 		keks[k.Label] = kek
 	}
-
+	
 	return nil
 }
 
@@ -150,7 +150,7 @@ func GetClientForNetID(clientNetID lorawan.NetID) (backend.Client, error) {
 			return a.client, nil
 		}
 	}
-
+	
 	if defaultEnabled {
 		var server string
 		if defaultServer == "" {
@@ -158,7 +158,7 @@ func GetClientForNetID(clientNetID lorawan.NetID) (backend.Client, error) {
 		} else {
 			server = defaultServer
 		}
-
+		
 		log.WithFields(log.Fields{
 			"net_id":                   clientNetID,
 			"passive_roaming":          defaultPassiveRoaming,
@@ -167,12 +167,12 @@ func GetClientForNetID(clientNetID lorawan.NetID) (backend.Client, error) {
 			"async":                    defaultAsync,
 			"async_timeout":            defaultAsyncTimeout,
 		}).Info("roaming: configuring roaming agreement using default server")
-
+		
 		var redisClient redis.UniversalClient
 		if defaultAsync {
 			redisClient = storage.RedisClient()
 		}
-
+		
 		client, err := backend.NewClient(backend.ClientConfig{
 			Logger:        log.StandardLogger(),
 			SenderID:      netID.String(),
@@ -190,7 +190,7 @@ func GetClientForNetID(clientNetID lorawan.NetID) (backend.Client, error) {
 		}
 		return client, nil
 	}
-
+	
 	return nil, ErrNoAgreement
 }
 
@@ -202,11 +202,11 @@ func GetPassiveRoamingLifetime(netID lorawan.NetID) time.Duration {
 			return a.passiveRoamingLifetime
 		}
 	}
-
+	
 	if defaultEnabled {
 		return defaultPassiveRoamingLifetime
 	}
-
+	
 	return 0
 }
 
@@ -226,24 +226,24 @@ func GetPassiveRoamingKEKLabel(netID lorawan.NetID) string {
 			return a.passiveRoamingKEKLabel
 		}
 	}
-
+	
 	if defaultEnabled {
 		return defaultPassiveRoamingKEKLabel
 	}
-
+	
 	return ""
 }
 
 // GetNetIDsForDevAddr returns the NetIDs matching the given DevAddr.
 func GetNetIDsForDevAddr(devAddr lorawan.DevAddr) []lorawan.NetID {
 	var out []lorawan.NetID
-
+	
 	for i := range agreements {
 		a := agreements[i]
 		if devAddr.IsNetID(a.netID) && a.passiveRoaming {
 			out = append(out, a.netID)
 		}
 	}
-
+	
 	return out
 }

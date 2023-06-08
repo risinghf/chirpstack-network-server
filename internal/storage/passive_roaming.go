@@ -4,16 +4,16 @@ import (
 	"context"
 	"fmt"
 	"time"
-
+	
 	"github.com/go-redis/redis/v8"
 	"github.com/gofrs/uuid"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/logging"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 const (
@@ -48,7 +48,7 @@ func SavePassiveRoamingDeviceSession(ctx context.Context, ds *PassiveRoamingDevi
 		}).Debug("storage: not saving passing-roaming session, lifetime expired")
 		return nil
 	}
-
+	
 	if ds.SessionID == uuid.Nil {
 		id, err := uuid.NewV4()
 		if err != nil {
@@ -56,21 +56,21 @@ func SavePassiveRoamingDeviceSession(ctx context.Context, ds *PassiveRoamingDevi
 		}
 		ds.SessionID = id
 	}
-
+	
 	devAddrKey := GetRedisKey(prDevAddrKeyTempl, ds.DevAddr)
 	devEUIKey := GetRedisKey(prDevEUIKeyTempl, ds.DevEUI)
 	sessKey := GetRedisKey(prDeviceSessionKeyTempl, ds.SessionID)
-
+	
 	dsPB, err := passiveRoamingDeviceSessionToPB(ds)
 	if err != nil {
 		return errors.Wrap(err, "to protobuf error")
 	}
-
+	
 	b, err := proto.Marshal(dsPB)
 	if err != nil {
 		return errors.Wrap(err, "protobuf marshal error")
 	}
-
+	
 	// We need to store a pointer from both the DevAddr and DevEUI to the
 	// passive-roaming device-session ID. This is needed:
 	//  * Because the DevAddr is not guaranteed to be unique
@@ -89,12 +89,12 @@ func SavePassiveRoamingDeviceSession(ctx context.Context, ds *PassiveRoamingDevi
 	if _, err := pipe.Exec(ctx); err != nil {
 		return errors.Wrap(err, "exec error")
 	}
-
+	
 	err = RedisClient().Set(ctx, sessKey, b, lifetime).Err()
 	if err != nil {
 		return errors.Wrap(err, "set error")
 	}
-
+	
 	log.WithFields(log.Fields{
 		"dev_eui":    ds.DevEUI,
 		"dev_addr":   ds.DevAddr,
@@ -102,7 +102,7 @@ func SavePassiveRoamingDeviceSession(ctx context.Context, ds *PassiveRoamingDevi
 		"ctx_id":     ctx.Value(logging.ContextIDKey),
 		"ttl":        lifetime,
 	}).Info("storage: passive-roaming device-session saved")
-
+	
 	return nil
 }
 
@@ -114,44 +114,44 @@ func GetPassiveRoamingDeviceSessionsForPHYPayload(ctx context.Context, phy loraw
 		return nil, fmt.Errorf("expected *lorawan.MACPayload, got: %T", phy.MACPayload)
 	}
 	originalFCnt := macPL.FHDR.FCnt
-
+	
 	deviceSessions, err := GetPassiveRoamingDeviceSessionsForDevAddr(ctx, macPL.FHDR.DevAddr)
 	if err != nil {
 		return nil, err
 	}
-
+	
 	var out []PassiveRoamingDeviceSession
-
+	
 	for _, ds := range deviceSessions {
 		// We will not validate the MIC.
 		if !ds.ValidateMIC {
 			out = append(out, ds)
 			continue
 		}
-
+		
 		// Restore the original frame-counter.
 		macPL.FHDR.FCnt = originalFCnt
-
+		
 		// Get the full 32bit frame-counter
 		macPL.FHDR.FCnt = GetFullFCntUp(ds.FCntUp, macPL.FHDR.FCnt)
-
+		
 		if ds.LoRaWAN11 {
 			ok, err = phy.ValidateUplinkDataMICF(ds.FNwkSIntKey)
 		} else {
 			ok, err = phy.ValidateUplinkDataMIC(lorawan.LoRaWAN1_0, 0, 0, 0, ds.FNwkSIntKey, ds.FNwkSIntKey)
 		}
-
+		
 		// This should really not happen, so it is safe to return the error
 		// instead of trying the next (possible) session.
 		if err != nil {
 			return nil, errors.Wrap(err, "validate mic error")
 		}
-
+		
 		if ok {
 			out = append(out, ds)
 		}
 	}
-
+	
 	return out, nil
 }
 
@@ -160,12 +160,12 @@ func GetPassiveRoamingDeviceSessionsForPHYPayload(ctx context.Context, phy loraw
 // slice is returned.
 func GetPassiveRoamingDeviceSessionsForDevAddr(ctx context.Context, devAddr lorawan.DevAddr) ([]PassiveRoamingDeviceSession, error) {
 	var items []PassiveRoamingDeviceSession
-
+	
 	ids, err := GetPassiveRoamingIDsForDevAddr(ctx, devAddr)
 	if err != nil {
 		return nil, err
 	}
-
+	
 	for _, id := range ids {
 		ds, err := GetPassiveRoamingDeviceSession(ctx, id)
 		if err != nil {
@@ -176,10 +176,10 @@ func GetPassiveRoamingDeviceSessionsForDevAddr(ctx context.Context, devAddr lora
 			}).Warning("storage: get passive-roaming device-session error")
 			continue
 		}
-
+		
 		items = append(items, ds)
 	}
-
+	
 	return items, nil
 }
 
@@ -187,7 +187,7 @@ func GetPassiveRoamingDeviceSessionsForDevAddr(ctx context.Context, devAddr lora
 // the given DevAddr.
 func GetPassiveRoamingIDsForDevAddr(ctx context.Context, devAddr lorawan.DevAddr) ([]uuid.UUID, error) {
 	key := GetRedisKey(prDevAddrKeyTempl, devAddr)
-
+	
 	val, err := RedisClient().SMembers(ctx, key).Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -195,14 +195,14 @@ func GetPassiveRoamingIDsForDevAddr(ctx context.Context, devAddr lorawan.DevAddr
 		}
 		return nil, errors.Wrap(err, "get passive-roaming session ids for devaddr error")
 	}
-
+	
 	var out []uuid.UUID
 	for i := range val {
 		var id uuid.UUID
 		copy(id[:], []byte(val[i]))
 		out = append(out, id)
 	}
-
+	
 	return out, nil
 }
 
@@ -210,7 +210,7 @@ func GetPassiveRoamingIDsForDevAddr(ctx context.Context, devAddr lorawan.DevAddr
 func GetPassiveRoamingDeviceSession(ctx context.Context, id uuid.UUID) (PassiveRoamingDeviceSession, error) {
 	key := GetRedisKey(prDeviceSessionKeyTempl, id)
 	var dsPB PassiveRoamingDeviceSessionPB
-
+	
 	val, err := RedisClient().Get(ctx, key).Bytes()
 	if err != nil {
 		if err == redis.Nil {
@@ -218,12 +218,12 @@ func GetPassiveRoamingDeviceSession(ctx context.Context, id uuid.UUID) (PassiveR
 		}
 		return PassiveRoamingDeviceSession{}, errors.Wrap(err, "get error")
 	}
-
+	
 	err = proto.Unmarshal(val, &dsPB)
 	if err != nil {
 		return PassiveRoamingDeviceSession{}, errors.Wrap(err, "unmarshal protobuf error")
 	}
-
+	
 	return passiveRoamingDeviceSessionFromPB(&dsPB)
 }
 
@@ -232,7 +232,7 @@ func passiveRoamingDeviceSessionToPB(ds *PassiveRoamingDeviceSession) (*PassiveR
 	if err != nil {
 		return nil, errors.Wrap(err, "timestamp proto error")
 	}
-
+	
 	return &PassiveRoamingDeviceSessionPB{
 		SessionId:   ds.SessionID[:],
 		NetId:       ds.NetID[:],
@@ -251,19 +251,19 @@ func passiveRoamingDeviceSessionFromPB(dsPB *PassiveRoamingDeviceSessionPB) (Pas
 	if err != nil {
 		return PassiveRoamingDeviceSession{}, errors.Wrap(err, "timestamp error")
 	}
-
+	
 	ds := PassiveRoamingDeviceSession{
 		LoRaWAN11:   dsPB.Lorawan_1_1,
 		Lifetime:    ts,
 		FCntUp:      dsPB.FCntUp,
 		ValidateMIC: dsPB.ValidateMic,
 	}
-
+	
 	copy(ds.SessionID[:], dsPB.SessionId)
 	copy(ds.NetID[:], dsPB.NetId)
 	copy(ds.DevAddr[:], dsPB.DevAddr)
 	copy(ds.DevEUI[:], dsPB.DevEui)
 	copy(ds.FNwkSIntKey[:], dsPB.FNwkSIntKey)
-
+	
 	return ds, nil
 }

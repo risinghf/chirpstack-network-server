@@ -3,7 +3,7 @@ package channels
 import (
 	"github.com/brocaar/chirpstack-network-server/v3/internal/band"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 // HandleChannelReconfigure handles the reconfiguration of active channels
@@ -15,11 +15,11 @@ func HandleChannelReconfigure(ds storage.DeviceSession) ([]storage.MACCommandBlo
 	if len(payloads) == 0 {
 		return nil, nil
 	}
-
+	
 	payloads[len(payloads)-1].TXPower = uint8(ds.TXPowerIndex)
 	payloads[len(payloads)-1].DataRate = uint8(ds.DR)
 	payloads[len(payloads)-1].Redundancy.NbRep = ds.NbTrans
-
+	
 	block := storage.MACCommandBlock{
 		CID: lorawan.LinkADRReq,
 	}
@@ -29,6 +29,6 @@ func HandleChannelReconfigure(ds storage.DeviceSession) ([]storage.MACCommandBlo
 			Payload: &payloads[i],
 		})
 	}
-
+	
 	return []storage.MACCommandBlock{block}, nil
 }

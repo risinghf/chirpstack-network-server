@@ -2,10 +2,10 @@ package config
 
 import (
 	"time"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/nc"
-	"github.com/brocaar/lorawan"
-	"github.com/brocaar/lorawan/band"
+	"github.com/risinghf/lorawan"
+	"github.com/risinghf/lorawan/band"
 )
 
 // Version defines the ChirpStack Network Server version.
@@ -18,14 +18,14 @@ type Config struct {
 		LogToSyslog               bool   `mapstructure:"log_to_syslog"`
 		GRPCDefaultResolverScheme string `mapstructure:"grpc_default_resolver_scheme"`
 	} `mapstructure:"general"`
-
+	
 	PostgreSQL struct {
 		DSN                string `mapstructure:"dsn"`
 		Automigrate        bool   `mapstructure:"automigrate"`
 		MaxOpenConnections int    `mapstructure:"max_open_connections"`
 		MaxIdleConnections int    `mapstructure:"max_idle_connections"`
 	} `mapstructure:"postgresql"`
-
+	
 	Redis struct {
 		URL        string   `mapstructure:"url"` // deprecated
 		Servers    []string `mapstructure:"servers"`
@@ -37,14 +37,14 @@ type Config struct {
 		TLSEnabled bool     `mapstructure:"tls_enabled"`
 		KeyPrefix  string   `mapstructure:"key_prefix"`
 	} `mapstructure:"redis"`
-
+	
 	NetworkServer struct {
 		NetID                lorawan.NetID
 		NetIDString          string        `mapstructure:"net_id"`
 		DeduplicationDelay   time.Duration `mapstructure:"deduplication_delay"`
 		DeviceSessionTTL     time.Duration `mapstructure:"device_session_ttl"`
 		GetDownlinkDataDelay time.Duration `mapstructure:"get_downlink_data_delay"`
-
+		
 		Band struct {
 			Name                   band.Name `mapstructure:"name"`
 			UplinkDwellTime400ms   bool      `mapstructure:"uplink_dwell_time_400ms"`
@@ -52,7 +52,7 @@ type Config struct {
 			UplinkMaxEIRP          float32   `mapstructure:"uplink_max_eirp"`
 			RepeaterCompatible     bool      `mapstructure:"repeater_compatible"`
 		} `mapstructure:"band"`
-
+		
 		NetworkSettings struct {
 			InstallationMargin      float64  `mapstructure:"installation_margin"`
 			RXWindow                int      `mapstructure:"rx_window"`
@@ -69,59 +69,59 @@ type Config struct {
 			DisableADR              bool     `mapstructure:"disable_adr"`
 			MaxMACCommandErrorCount int      `mapstructure:"max_mac_command_error_count"`
 			ADRPlugins              []string `mapstructure:"adr_plugins"`
-
+			
 			ExtraChannels []struct {
 				Frequency uint32 `mapstructure:"frequency"`
 				MinDR     int    `mapstructure:"min_dr"`
 				MaxDR     int    `mapstructure:"max_dr"`
 			} `mapstructure:"extra_channels"`
-
+			
 			ClassB struct {
 				PingSlotDR        int    `mapstructure:"ping_slot_dr"`
 				PingSlotFrequency uint32 `mapstructure:"ping_slot_frequency"`
 			} `mapstructure:"class_b"`
-
+			
 			RejoinRequest struct {
 				Enabled   bool `mapstructure:"enabled"`
 				MaxCountN int  `mapstructure:"max_count_n"`
 				MaxTimeN  int  `mapstructure:"max_time_n"`
 			} `mapstructure:"rejoin_request"`
 		} `mapstructure:"network_settings"`
-
+		
 		Scheduler struct {
 			SchedulerInterval time.Duration `mapstructure:"scheduler_interval"`
-
+			
 			ClassC struct {
 				GatewayDownlinkLockDuration time.Duration `mapstructure:"gateway_downlink_lock_duration"`
 				DeviceDownlinkLockDuration  time.Duration `mapstructure:"device_downlink_lock_duration"`
 				MulticastGatewayDelay       time.Duration `mapstructure:"multicast_gateway_delay"`
 			} `mapstructure:"class_c"`
 		} `mapstructure:"scheduler"`
-
+		
 		API struct {
 			Bind    string `mapstructure:"bind"`
 			CACert  string `mapstructure:"ca_cert"`
 			TLSCert string `mapstructure:"tls_cert"`
 			TLSKey  string `mapstructure:"tls_key"`
 		} `mapstructure:"api"`
-
+		
 		Gateway struct {
 			// Deprecated
 			Stats struct {
 				Timezone string
 			}
-
+			
 			CACert             string        `mapstructure:"ca_cert"`
 			CAKey              string        `mapstructure:"ca_key"`
 			ClientCertLifetime time.Duration `mapstructure:"client_cert_lifetime"`
 			DownlinkTimeout    time.Duration `mapstructure:"downlink_timeout"`
-
+			
 			ForceGwsPrivate bool `mapstructure:"force_gws_private"`
-
+			
 			Backend struct {
 				Type                 string `mapstructure:"type"`
 				MultiDownlinkFeature string `mapstructure:"multi_downlink_feature"`
-
+				
 				MQTT struct {
 					Server               string        `mapstructure:"server"`
 					Username             string        `mapstructure:"username"`
@@ -133,18 +133,18 @@ type Config struct {
 					CACert               string        `mapstructure:"ca_cert"`
 					TLSCert              string        `mapstructure:"tls_cert"`
 					TLSKey               string        `mapstructure:"tls_key"`
-
+					
 					EventTopic           string `mapstructure:"event_topic"`
 					CommandTopicTemplate string `mapstructure:"command_topic_template"`
 				} `mapstructure:"mqtt"`
-
+				
 				AMQP struct {
 					URL                       string `mapstructure:"url"`
 					EventQueueName            string `mapstructure:"event_queue_name"`
 					EventRoutingKey           string `mapstructure:"event_routing_key"`
 					CommandRoutingKeyTemplate string `mapstructure:"command_routing_key_template"`
 				} `mapstructure:"amqp"`
-
+				
 				GCPPubSub struct {
 					CredentialsFile         string        `mapstructure:"credentials_file"`
 					ProjectID               string        `mapstructure:"project_id"`
@@ -152,7 +152,7 @@ type Config struct {
 					DownlinkTopicName       string        `mapstructure:"downlink_topic_name"`
 					UplinkRetentionDuration time.Duration `mapstructure:"uplink_retention_duration"`
 				} `mapstructure:"gcp_pub_sub"`
-
+				
 				AzureIoTHub struct {
 					EventsConnectionString   string `mapstructure:"events_connection_string"`
 					CommandsConnectionString string `mapstructure:"commands_connection_string"`
@@ -160,11 +160,11 @@ type Config struct {
 			} `mapstructure:"backend"`
 		} `mapstructure:"gateway"`
 	} `mapstructure:"network_server"`
-
+	
 	JoinServer struct {
 		ResolveJoinEUI      bool   `mapstructure:"resolve_join_eui"`
 		ResolveDomainSuffix string `mapstructure:"resolve_domain_suffix"`
-
+		
 		Servers []struct {
 			Server       string        `mapstructure:"server"`
 			JoinEUI      string        `mapstructure:"join_eui"`
@@ -174,7 +174,7 @@ type Config struct {
 			TLSCert      string        `mapstructure:"tls_cert"`
 			TLSKey       string        `mapstructure:"tls_key"`
 		} `mapstructure:"servers"`
-
+		
 		Default struct {
 			Server       string        `mapstructure:"server"`
 			Async        bool          `mapstructure:"async"`
@@ -183,49 +183,49 @@ type Config struct {
 			TLSCert      string        `mapstructure:"tls_cert"`
 			TLSKey       string        `mapstructure:"tls_key"`
 		} `mapstructure:"default"`
-
+		
 		KEK struct {
 			Set []KEK `mapstructure:"set"`
 		} `mapstructure:"kek"`
 	} `mapstructure:"join_server"`
-
+	
 	Roaming struct {
 		ResolveNetIDDomainSuffix string `mapstructure:"resolve_netid_domain_suffix"`
-
+		
 		API struct {
 			Bind    string `mapstructure:"bind"`
 			CACert  string `mapstructure:"ca_cert"`
 			TLSCert string `mapstructure:"tls_cert"`
 			TLSKey  string `mapstructure:"tls_key"`
 		} `mapstructure:"api"`
-
+		
 		Servers []RoamingServer      `mapstructure:"servers"`
 		Default DefaultRoamingServer `mapstructure:"default"`
-
+		
 		KEK struct {
 			Set []KEK `mapstructure:"set"`
 		} `mapstructure:"kek"`
 	} `mapstructure:"roaming"`
-
+	
 	NetworkController struct {
 		Client nc.NetworkControllerServiceClient `mapstructure:"client"`
-
+		
 		Server  string `mapstructure:"server"`
 		CACert  string `mapstructure:"ca_cert"`
 		TLSCert string `mapstructure:"tls_cert"`
 		TLSKey  string `mapstructure:"tls_key"`
 	} `mapstructure:"network_controller"`
-
+	
 	Metrics struct {
 		Timezone string `mapstructure:"timezone"`
-
+		
 		Prometheus struct {
 			EndpointEnabled    bool   `mapstructure:"endpoint_enabled"`
 			Bind               string `mapstructure:"bind"`
 			APITimingHistogram bool   `mapstructure:"api_timing_histogram"`
 		} `mapstructure:"prometheus"`
 	} `mapstructure:"metrics"`
-
+	
 	Monitoring struct {
 		Bind                         string `mapstructure:"bind"`
 		PrometheusEndpoint           bool   `mapstructure:"prometheus_endpoint"`

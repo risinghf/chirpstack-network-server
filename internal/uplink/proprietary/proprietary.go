@@ -3,17 +3,17 @@ package proprietary
 import (
 	"context"
 	"fmt"
-
+	
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/as"
 	"github.com/brocaar/chirpstack-api/go/v3/common"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/backend/applicationserver"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/logging"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/models"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 var tasks = []func(*proprietaryContext) error{
@@ -23,7 +23,7 @@ var tasks = []func(*proprietaryContext) error{
 
 type proprietaryContext struct {
 	ctx context.Context
-
+	
 	RXPacket    models.RXPacket
 	DataPayload *lorawan.DataPayload
 }
@@ -34,13 +34,13 @@ func Handle(ctx context.Context, rxPacket models.RXPacket) error {
 		ctx:      ctx,
 		RXPacket: rxPacket,
 	}
-
+	
 	for _, t := range tasks {
 		if err := t(&pctx); err != nil {
 			return err
 		}
 	}
-
+	
 	return nil
 }
 
@@ -55,14 +55,14 @@ func setContextFromProprietaryPHYPayload(ctx *proprietaryContext) error {
 
 func sendProprietaryPayloadToApplicationServer(ctx *proprietaryContext) error {
 	var ids []lorawan.EUI64
-
+	
 	handleReq := as.HandleProprietaryUplinkRequest{
 		MacPayload: ctx.DataPayload.Bytes,
 		Mic:        ctx.RXPacket.PHYPayload.MIC[:],
 		TxInfo:     ctx.RXPacket.TXInfo,
 		RxInfo:     ctx.RXPacket.RXInfoSet,
 	}
-
+	
 	// get gateway info
 	for i := range handleReq.RxInfo {
 		var id lorawan.EUI64
@@ -77,11 +77,11 @@ func sendProprietaryPayloadToApplicationServer(ctx *proprietaryContext) error {
 		}).Warningf("get gateways for gateway ids error: %s", err)
 		gws = make(map[lorawan.EUI64]storage.Gateway)
 	}
-
+	
 	for i := range handleReq.RxInfo {
 		var id lorawan.EUI64
 		copy(id[:], handleReq.RxInfo[i].GatewayId)
-
+		
 		if gw, ok := gws[id]; ok {
 			handleReq.RxInfo[i].Location = &common.Location{
 				Latitude:  gw.Location.Latitude,
@@ -90,7 +90,7 @@ func sendProprietaryPayloadToApplicationServer(ctx *proprietaryContext) error {
 			}
 		}
 	}
-
+	
 	// send proprietary to all application servers, as the network-server
 	// has know knowledge / state about which application-server is responsible
 	// for this frame
@@ -98,7 +98,7 @@ func sendProprietaryPayloadToApplicationServer(ctx *proprietaryContext) error {
 	if err != nil {
 		return errors.Wrap(err, "get all routing-profiles error")
 	}
-
+	
 	for _, rp := range rps {
 		go func(ctx context.Context, rp storage.RoutingProfile, handleReq as.HandleProprietaryUplinkRequest) {
 			asClient, err := applicationserver.Pool().Get(rp.ASID, []byte(rp.CACert), []byte(rp.TLSCert), []byte(rp.TLSKey))
@@ -106,7 +106,7 @@ func sendProprietaryPayloadToApplicationServer(ctx *proprietaryContext) error {
 				log.WithError(err).Error("get application-server client error")
 				return
 			}
-
+			
 			if _, err = asClient.HandleProprietaryUplink(ctx, &handleReq); err != nil {
 				log.WithFields(log.Fields{
 					"ctx_id": ctx.Value(logging.ContextIDKey),
@@ -115,6 +115,6 @@ func sendProprietaryPayloadToApplicationServer(ctx *proprietaryContext) error {
 			}
 		}(ctx.ctx, rp, handleReq)
 	}
-
+	
 	return nil
 }

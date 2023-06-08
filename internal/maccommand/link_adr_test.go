@@ -3,21 +3,21 @@ package maccommand
 import (
 	"context"
 	"testing"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/band"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/test"
-	"github.com/brocaar/lorawan"
 	"github.com/pkg/errors"
+	"github.com/risinghf/lorawan"
 	"github.com/stretchr/testify/require"
 )
 
 func TestLinkADR(t *testing.T) {
 	assert := require.New(t)
-
+	
 	conf := test.GetConfig()
 	assert.NoError(band.Setup(conf))
-
+	
 	t.Run("handleLinkADRAns", func(t *testing.T) {
 		tests := []struct {
 			Name                  string
@@ -168,13 +168,13 @@ func TestLinkADR(t *testing.T) {
 				},
 			},
 		}
-
+		
 		for _, tst := range tests {
 			t.Run(tst.Name, func(t *testing.T) {
 				assert := require.New(t)
-
+				
 				var pending *storage.MACCommandBlock
-
+				
 				if tst.LinkADRReqPayload != nil {
 					pending = &storage.MACCommandBlock{
 						CID: lorawan.LinkADRReq,
@@ -186,7 +186,7 @@ func TestLinkADR(t *testing.T) {
 						},
 					}
 				}
-
+				
 				answer := storage.MACCommandBlock{
 					CID: lorawan.LinkADRAns,
 					MACCommands: storage.MACCommands{

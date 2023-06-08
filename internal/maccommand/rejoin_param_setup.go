@@ -3,11 +3,11 @@ package maccommand
 import (
 	"context"
 	"fmt"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/logging"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
 	"github.com/pkg/errors"
+	"github.com/risinghf/lorawan"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -31,21 +31,21 @@ func handleRejoinParamSetupAns(ctx context.Context, ds *storage.DeviceSession, b
 	if len(block.MACCommands) != 1 {
 		return nil, fmt.Errorf("exactly one mac-command expected, got: %d", len(block.MACCommands))
 	}
-
+	
 	if pendingBlock == nil || len(pendingBlock.MACCommands) == 0 {
 		return nil, errors.New("expected pending mac-command")
 	}
 	req := pendingBlock.MACCommands[0].Payload.(*lorawan.RejoinParamSetupReqPayload)
-
+	
 	pl, ok := block.MACCommands[0].Payload.(*lorawan.RejoinParamSetupAnsPayload)
 	if !ok {
 		return nil, fmt.Errorf("expected *lorawan.RejoinParamSetupAnsPayload, got %T", block.MACCommands[0].Payload)
 	}
-
+	
 	ds.RejoinRequestEnabled = true
 	ds.RejoinRequestMaxCountN = int(req.MaxCountN)
 	ds.RejoinRequestMaxTimeN = int(req.MaxTimeN)
-
+	
 	if pl.TimeOK {
 		log.WithFields(log.Fields{
 			"dev_eui": ds.DevEUI,
@@ -59,6 +59,6 @@ func handleRejoinParamSetupAns(ctx context.Context, ds *storage.DeviceSession, b
 			"ctx_id":  ctx.Value(logging.ContextIDKey),
 		}).Warning("rejoin_param_setup request acknowledged")
 	}
-
+	
 	return nil, nil
 }

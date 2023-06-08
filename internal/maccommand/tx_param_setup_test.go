@@ -3,18 +3,18 @@ package maccommand
 import (
 	"context"
 	"testing"
-
+	
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 func TestTXParamSetup(t *testing.T) {
 	t.Run("RequestTXParamSetup", func(t *testing.T) {
 		assert := require.New(t)
-
+		
 		assert.Equal(storage.MACCommandBlock{
 			CID: lorawan.TXParamSetupReq,
 			MACCommands: []lorawan.MACCommand{
@@ -29,7 +29,7 @@ func TestTXParamSetup(t *testing.T) {
 			},
 		}, RequestTXParamSetup(true, false, 10))
 	})
-
+	
 	t.Run("handleTXParamSetupAns", func(t *testing.T) {
 		tests := []struct {
 			Name                  string
@@ -79,11 +79,11 @@ func TestTXParamSetup(t *testing.T) {
 				ExpectedError: errors.New("expected pending mac-command"),
 			},
 		}
-
+		
 		for _, tst := range tests {
 			t.Run(tst.Name, func(t *testing.T) {
 				assert := require.New(t)
-
+				
 				ret, err := handleTXParamSetupAns(context.Background(), &tst.DeviceSession, storage.MACCommandBlock{}, tst.PendingBlock)
 				assert.Nil(ret)
 				assert.Equal(tst.ExpectedDeviceSession, tst.DeviceSession)

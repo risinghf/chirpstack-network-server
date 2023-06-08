@@ -4,11 +4,11 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/binary"
-
+	
 	"github.com/gofrs/uuid"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/pkg/errors"
-
+	
 	"github.com/brocaar/chirpstack-api/go/v3/gw"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/backend/gateway"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/band"
@@ -18,7 +18,7 @@ import (
 	"github.com/brocaar/chirpstack-network-server/v3/internal/logging"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/models"
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
+	"github.com/risinghf/lorawan"
 )
 
 var (
@@ -39,7 +39,7 @@ var tasks = []func(*joinContext) error{
 
 type joinContext struct {
 	ctx context.Context
-
+	
 	Token               uint16
 	DeviceSession       storage.DeviceSession
 	DeviceGatewayRXInfo []storage.DeviceGatewayRXInfo
@@ -55,7 +55,7 @@ func Setup(conf config.Config) error {
 	rxWindow = nsConfig.RXWindow
 	downlinkTXPower = nsConfig.DownlinkTXPower
 	gatewayPreferMinMargin = nsConfig.GatewayPreferMinMargin
-
+	
 	return nil
 }
 
@@ -67,13 +67,13 @@ func Handle(ctx context.Context, ds storage.DeviceSession, rxPacket models.RXPac
 		PHYPayload:    phy,
 		RXPacket:      rxPacket,
 	}
-
+	
 	for _, t := range tasks {
 		if err := t(&jctx); err != nil {
 			return err
 		}
 	}
-
+	
 	return nil
 }
 
@@ -88,12 +88,12 @@ func setDeviceGatewayRXInfo(ctx *joinContext) error {
 			Context:   ctx.RXPacket.RXInfoSet[i].Context,
 		})
 	}
-
+	
 	// this should not happen
 	if len(ctx.DeviceGatewayRXInfo) == 0 {
 		return errors.New("DeviceGatewayRXInfo is empty!")
 	}
-
+	
 	return nil
 }
 
@@ -103,9 +103,9 @@ func selectDownlinkGateway(ctx *joinContext) error {
 	if err != nil {
 		return err
 	}
-
+	
 	ctx.DownlinkFrame.GatewayId = ctx.DownlinkGateway.GatewayID[:]
-
+	
 	return nil
 }
 
@@ -115,13 +115,13 @@ func setTXInfo(ctx *joinContext) error {
 			return err
 		}
 	}
-
+	
 	if rxWindow == 0 || rxWindow == 2 {
 		if err := setTXInfoForRX2(ctx); err != nil {
 			return err
 		}
 	}
-
+	
 	return nil
 }
 
@@ -131,33 +131,33 @@ func setTXInfoForRX1(ctx *joinContext) error {
 		Antenna: ctx.DownlinkGateway.Antenna,
 		Context: ctx.DownlinkGateway.Context,
 	}
-
+	
 	// get RX1 data-rate
 	rx1DR, err := band.Band().GetRX1DataRateIndex(ctx.RXPacket.DR, 0)
 	if err != nil {
 		return errors.Wrap(err, "get rx1 data-rate index error")
 	}
-
+	
 	// set data-rate
 	err = helpers.SetDownlinkTXInfoDataRate(&txInfo, rx1DR, band.Band())
 	if err != nil {
 		return errors.Wrap(err, "set downlink tx-info data-rate error")
 	}
-
+	
 	// set frequency
 	freq, err := band.Band().GetRX1FrequencyForUplinkFrequency(ctx.RXPacket.TXInfo.Frequency)
 	if err != nil {
 		return errors.Wrap(err, "get rx1 frequency error")
 	}
 	txInfo.Frequency = uint32(freq)
-
+	
 	// set tx power
 	if downlinkTXPower != -1 {
 		txInfo.Power = int32(downlinkTXPower)
 	} else {
 		txInfo.Power = int32(band.Band().GetDownlinkTXPower(txInfo.Frequency))
 	}
-
+	
 	// set timestamp
 	txInfo.Timing = gw.DownlinkTiming_DELAY
 	txInfo.TimingInfo = &gw.DownlinkTXInfo_DelayTimingInfo{
@@ -165,12 +165,12 @@ func setTXInfoForRX1(ctx *joinContext) error {
 			Delay: ptypes.DurationProto(band.Band().GetDefaults().JoinAcceptDelay1),
 		},
 	}
-
+	
 	// set downlink item
 	ctx.DownlinkFrame.Items = append(ctx.DownlinkFrame.Items, &gw.DownlinkFrameItem{
 		TxInfo: &txInfo,
 	})
-
+	
 	return nil
 }
 
@@ -181,20 +181,20 @@ func setTXInfoForRX2(ctx *joinContext) error {
 		Frequency: band.Band().GetDefaults().RX2Frequency,
 		Context:   ctx.DownlinkGateway.Context,
 	}
-
+	
 	// set data-rate
 	err := helpers.SetDownlinkTXInfoDataRate(&txInfo, band.Band().GetDefaults().RX2DataRate, band.Band())
 	if err != nil {
 		return errors.Wrap(err, "set downlink tx-info data-rate error")
 	}
-
+	
 	// set tx power
 	if downlinkTXPower != -1 {
 		txInfo.Power = int32(downlinkTXPower)
 	} else {
 		txInfo.Power = int32(band.Band().GetDownlinkTXPower(txInfo.Frequency))
 	}
-
+	
 	// set timestamp
 	txInfo.Timing = gw.DownlinkTiming_DELAY
 	txInfo.TimingInfo = &gw.DownlinkTXInfo_DelayTimingInfo{
@@ -202,11 +202,11 @@ func setTXInfoForRX2(ctx *joinContext) error {
 			Delay: ptypes.DurationProto(band.Band().GetDefaults().JoinAcceptDelay2),
 		},
 	}
-
+	
 	ctx.DownlinkFrame.Items = append(ctx.DownlinkFrame.Items, &gw.DownlinkFrameItem{
 		TxInfo: &txInfo,
 	})
-
+	
 	return nil
 }
 
@@ -216,17 +216,17 @@ func setToken(ctx *joinContext) error {
 	if err != nil {
 		return errors.Wrap(err, "read random error")
 	}
-
+	
 	var downID uuid.UUID
 	if ctxID := ctx.ctx.Value(logging.ContextIDKey); ctxID != nil {
 		if id, ok := ctxID.(uuid.UUID); ok {
 			downID = id
 		}
 	}
-
+	
 	ctx.DownlinkFrame.Token = uint32(binary.BigEndian.Uint16(b))
 	ctx.DownlinkFrame.DownlinkId = downID[:]
-
+	
 	return nil
 }
 
@@ -235,11 +235,11 @@ func setDownlinkFrame(ctx *joinContext) error {
 	if err != nil {
 		return errors.Wrap(err, "marshal phypayload error")
 	}
-
+	
 	for i := range ctx.DownlinkFrame.Items {
 		ctx.DownlinkFrame.Items[i].PhyPayload = phyB
 	}
-
+	
 	return nil
 }
 
@@ -248,7 +248,7 @@ func sendJoinAcceptResponse(ctx *joinContext) error {
 	if err != nil {
 		return errors.Wrap(err, "send downlink frame error")
 	}
-
+	
 	return nil
 }
 
@@ -259,10 +259,10 @@ func saveDownlinkFrame(ctx *joinContext) error {
 		RoutingProfileId: ctx.DeviceSession.RoutingProfileID.Bytes(),
 		DownlinkFrame:    &ctx.DownlinkFrame,
 	}
-
+	
 	if err := storage.SaveDownlinkFrame(ctx.ctx, &df); err != nil {
 		return errors.Wrap(err, "save downlink-frame error")
 	}
-
+	
 	return nil
 }

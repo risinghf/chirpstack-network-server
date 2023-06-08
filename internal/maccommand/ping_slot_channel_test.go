@@ -3,10 +3,10 @@ package maccommand
 import (
 	"context"
 	"testing"
-
+	
 	"github.com/brocaar/chirpstack-network-server/v3/internal/storage"
-	"github.com/brocaar/lorawan"
 	"github.com/pkg/errors"
+	"github.com/risinghf/lorawan"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,7 +26,7 @@ func TestPingSlotChannel(t *testing.T) {
 			},
 		}, RequestPingSlotChannel(lorawan.EUI64{}, 3, 868100000))
 	})
-
+	
 	t.Run("handlePingSlotChannelAns", func(t *testing.T) {
 		tests := []struct {
 			Name                  string
@@ -101,11 +101,11 @@ func TestPingSlotChannel(t *testing.T) {
 				},
 			},
 		}
-
+		
 		for _, tst := range tests {
 			t.Run(tst.Name, func(t *testing.T) {
 				assert := require.New(t)
-
+				
 				var pending *storage.MACCommandBlock
 				if tst.PingSlotChannelReq != nil {
 					pending = &storage.MACCommandBlock{
@@ -118,7 +118,7 @@ func TestPingSlotChannel(t *testing.T) {
 						},
 					}
 				}
-
+				
 				answer := storage.MACCommandBlock{
 					CID: lorawan.PingSlotChannelAns,
 					MACCommands: []lorawan.MACCommand{
@@ -128,7 +128,7 @@ func TestPingSlotChannel(t *testing.T) {
 						},
 					},
 				}
-
+				
 				resp, err := handlePingSlotChannelAns(context.Background(), &tst.DeviceSession, answer, pending)
 				if tst.ExpectedError != nil {
 					assert.Equal(tst.ExpectedError.Error(), err.Error())
